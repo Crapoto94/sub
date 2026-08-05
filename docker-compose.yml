@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    restart: always
+    ports:
+      - "3261:3261"
+    environment:
+      - NODE_ENV=production
+      - PORT=3261
+      - DB_FILE=/app/data/sub.sqlite
+      - JWT_SECRET=${JWT_SECRET:-devsecret}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-8h}
+      - INITIAL_ADMIN_LOGIN=${INITIAL_ADMIN_LOGIN:-}
+      - AUTH_MODE=${AUTH_MODE:-apm}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3260}
+      - APM_API_URL=${APM_API_URL:-https://api.ivry.local}
+      - APM_API_KEY=${APM_API_KEY:-}
+      - HUBDSI_API_URL=${HUBDSI_API_URL:-}
+      - HUBDSI_API_KEY=${HUBDSI_API_KEY:-}
+    volumes:
+      - sub_data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=${APP_API_URL:-http://localhost:3261}
+    restart: always
+    ports:
+      - "3260:80"
+    depends_on:
+      - backend
+
+volumes:
+  sub_data:

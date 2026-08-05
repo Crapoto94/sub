@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+
+# Documents métier en cours de retravail (à fournir en input, jamais commités)
+DOCS/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+backend/data/
+frontend/.env
+.DS_Store
+npm-debug.log*
+*.log
