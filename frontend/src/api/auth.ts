@@ -8,6 +8,7 @@ export interface User {
   service: string | null;
   role: 'admin' | 'membre';
   isActive: boolean;
+  isLocal: boolean;
   lastLoginAt: string | null;
 }
 

@@ -1,12 +1,22 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldCheck, LogOut, HandCoins } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, LogOut, HandCoins, FolderOpen, Users, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { APP_VERSION } from '../../lib/appMeta';
+import WhatsNewModal from './WhatsNewModal';
 
 const sections = [
   {
     title: 'Synthèse',
     items: [{ to: '/', label: 'Vue d’ensemble', icon: LayoutDashboard, end: true }],
+  },
+  {
+    title: 'Subventions',
+    items: [
+      { to: '/dossiers', label: 'Dossiers', icon: FolderOpen, end: false },
+      { to: '/associations', label: 'Associations', icon: Users, end: false },
+    ],
   },
   {
     title: 'Administration',
@@ -17,6 +27,7 @@ const sections = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
   return (
     <motion.aside
@@ -25,13 +36,26 @@ export default function Sidebar() {
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-white"
     >
-      <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white">
-          <HandCoins size={18} />
+      <div className="border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white">
+            <HandCoins size={18} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Subventions</p>
+            <p className="text-xs text-slate-500">Ville d’Ivry-sur-Seine</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-800">Subventions</p>
-          <p className="text-xs text-slate-500">Ville d’Ivry-sur-Seine</p>
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+          <p className="text-xs font-medium text-slate-500">Version {APP_VERSION}</p>
+          <button
+            type="button"
+            onClick={() => setWhatsNewOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50"
+          >
+            <Sparkles size={12} />
+            Quoi de neuf ?
+          </button>
         </div>
       </div>
 
@@ -79,6 +103,8 @@ export default function Sidebar() {
           Se déconnecter
         </button>
       </div>
+
+      <WhatsNewModal open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
     </motion.aside>
   );
 }

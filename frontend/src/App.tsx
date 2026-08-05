@@ -4,6 +4,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import SynthesePage from './pages/SynthesePage';
+import DossiersPage from './pages/dossiers/DossiersPage';
+import AssociationsPage from './pages/associations/AssociationsPage';
+import DossierAssociation from './pages/DossierAssociation';
 import UsersPage from './pages/administration/UsersPage';
 
 export default function App() {
@@ -21,6 +24,9 @@ export default function App() {
             }
           >
             <Route index element={<SynthesePage />} />
+            <Route path="/dossiers" element={<DossiersPage />} />
+            <Route path="/dossiers/:id" element={<DossierAssociation />} />
+            <Route path="/associations" element={<AssociationsPage />} />
             <Route
               path="/administration/utilisateurs"
               element={

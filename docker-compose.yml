@@ -12,6 +12,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:-devsecret}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-8h}
       - INITIAL_ADMIN_LOGIN=${INITIAL_ADMIN_LOGIN:-}
+      - LOCAL_ADMIN_USERNAME=${LOCAL_ADMIN_USERNAME:-}
+      - LOCAL_ADMIN_PASSWORD=${LOCAL_ADMIN_PASSWORD:-}
       - AUTH_MODE=${AUTH_MODE:-apm}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3260}
       - APM_API_URL=${APM_API_URL:-https://api.ivry.local}

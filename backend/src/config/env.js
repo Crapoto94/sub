@@ -13,6 +13,10 @@ const env = {
 
   authMode: process.env.AUTH_MODE || 'apm',
   initialAdminLogin: (process.env.INITIAL_ADMIN_LOGIN || '').trim(),
+  localAdmin: {
+    username: (process.env.LOCAL_ADMIN_USERNAME || '').trim(),
+    password: process.env.LOCAL_ADMIN_PASSWORD || '',
+  },
 
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3260')
     .split(',')

@@ -8,7 +8,10 @@ const { env } = require('./src/config/env');
 const { setupDb } = require('./src/db/sqlite');
 const { notFound, errorHandler } = require('./src/middlewares/errorHandler');
 const authRoutes = require('./src/modules/auth/auth.routes');
+const authService = require('./src/modules/auth/auth.service');
 const usersRoutes = require('./src/modules/users/users.routes');
+const associationsRoutes = require('./src/modules/associations/associations.routes');
+const dossiersRoutes = require('./src/modules/dossiers/dossiers.routes');
 const statusRoutes = require('./src/modules/system/status.routes');
 
 const app = express();
@@ -56,6 +59,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // --- Routes versionnées ---
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
+app.use('/api/v1/associations', associationsRoutes);
+app.use('/api/v1/dossiers', dossiersRoutes);
 app.use('/api/status', statusRoutes);
 
 app.use(notFound);
@@ -63,6 +68,7 @@ app.use(errorHandler);
 
 async function start() {
   setupDb();
+  authService.seedLocalAdmin();
   app.listen(env.port, () => {
     console.log(`[SERVER] API Subventions démarrée sur le port ${env.port} (env: ${env.nodeEnv})`);
   });

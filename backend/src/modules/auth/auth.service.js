@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { env } = require('../../config/env');
 const { authenticateAD, getUserAD } = require('../../services/apm');
 const repository = require('./auth.repository');
@@ -6,6 +7,10 @@ const repository = require('./auth.repository');
 // En local (sans APM) ou sans clé APM configurée, on court-circuite l'AD.
 function isLocalMode() {
   return env.authMode === 'local' || !env.apm.key;
+}
+
+function isInitialAdmin(username) {
+  return env.initialAdminLogin && username.toLowerCase() === env.initialAdminLogin.toLowerCase();
 }
 
 function publicUser(u) {
@@ -17,6 +22,7 @@ function publicUser(u) {
     service: u.service,
     role: u.role,
     isActive: !!u.is_active,
+    isLocal: !!u.password_hash,
     lastLoginAt: u.last_login_at ? `${u.last_login_at.replace(' ', 'T')}Z` : null,
   };
 }
@@ -35,43 +41,17 @@ async function enrichFromAD(username) {
   }
 }
 
-async function login(username, password) {
-  if (!username || !password) {
-    const err = new Error('Identifiants manquants');
-    err.status = 400;
-    throw err;
-  }
-
-  let adInfo;
-  if (isLocalMode()) {
-    adInfo = { displayName: username, mail: null, service: null };
-  } else {
-    const result = await authenticateAD(username, password);
-    if (!result || result.success !== true) {
-      const err = new Error('Identifiants invalides');
-      err.status = 401;
-      throw err;
-    }
-    adInfo = await enrichFromAD(username);
-  }
-
-  let user = repository.findUserByUsername(username);
-  if (!user) {
-    const role =
-      username.toLowerCase() === env.initialAdminLogin.toLowerCase() ? 'admin' : 'membre';
-    user = repository.createUser({
-      username,
-      display_name: adInfo.displayName,
-      email: adInfo.mail,
-      service: adInfo.service,
-      role,
-    });
-  }
-
+function issueSession(user) {
   if (!user.is_active) {
     const err = new Error('Compte désactivé');
     err.status = 403;
     throw err;
+  }
+
+  // L'admin initial (config) est toujours admin, même s'il a été créé avant.
+  if (isInitialAdmin(user.username) && user.role !== 'admin') {
+    repository.promoteToAdmin(user.id);
+    user = repository.findUserByUsername(user.username);
   }
 
   repository.touchLogin(user.id);
@@ -85,6 +65,55 @@ async function login(username, password) {
   return { token, user: publicUser(user) };
 }
 
+async function login(username, password) {
+  if (!username || !password) {
+    const err = new Error('Identifiants manquants');
+    err.status = 400;
+    throw err;
+  }
+
+  const existing = repository.findUserByUsername(username);
+
+  // Compte local : vérification du mot de passe stocké (bcrypt).
+  if (existing && existing.password_hash) {
+    const ok = await bcrypt.compare(password, existing.password_hash);
+    if (!ok) {
+      const err = new Error('Identifiants invalides');
+      err.status = 401;
+      throw err;
+    }
+    return issueSession(existing);
+  }
+
+  // Sinon : authentification Active Directory (ou fallback dev sans APM).
+  let adInfo;
+  if (isLocalMode()) {
+    adInfo = { displayName: username, mail: null, service: null };
+  } else {
+    const result = await authenticateAD(username, password);
+    if (!result || result.success !== true) {
+      const err = new Error('Identifiants invalides');
+      err.status = 401;
+      throw err;
+    }
+    adInfo = await enrichFromAD(username);
+  }
+
+  let user = existing;
+  if (!user) {
+    user = repository.createUser({
+      username,
+      display_name: adInfo.displayName,
+      email: adInfo.mail,
+      service: adInfo.service,
+      role: isInitialAdmin(username) ? 'admin' : 'membre',
+      password_hash: null,
+    });
+  }
+
+  return issueSession(user);
+}
+
 function me(id) {
   const user = repository.findUserById(id);
   if (!user) {
@@ -95,4 +124,28 @@ function me(id) {
   return publicUser(user);
 }
 
-module.exports = { login, me };
+// Seed au démarrage : compte local admin si LOCAL_ADMIN_USERNAME / PASSWORD sont définis.
+// Permet de démarrer sans APM/AD et d'avoir immédiatement un accès admin.
+function seedLocalAdmin() {
+  const { username, password } = env.localAdmin;
+  if (!username || !password) return;
+  const hash = bcrypt.hashSync(password, 10);
+  let user = repository.findUserByUsername(username);
+  if (!user) {
+    user = repository.createUser({
+      username,
+      display_name: username,
+      email: null,
+      service: null,
+      role: 'admin',
+      password_hash: hash,
+    });
+    console.log(`[AUTH] Compte local admin créé : ${username}`);
+  } else {
+    repository.setPasswordHash(user.id, hash);
+    if (user.role !== 'admin') repository.promoteToAdmin(user.id);
+    console.log(`[AUTH] Compte local admin mis à jour : ${username}`);
+  }
+}
+
+module.exports = { login, me, seedLocalAdmin };

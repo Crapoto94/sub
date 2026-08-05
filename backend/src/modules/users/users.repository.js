@@ -11,6 +11,17 @@ const listUsers = ({ limit, offset }) => {
 
 const findUserById = (id) => query.get('SELECT * FROM users WHERE id = ?', [id]);
 
+const findUserByUsername = (username) =>
+  query.get('SELECT * FROM users WHERE username = ?', [username]);
+
+const createUser = ({ username, display_name, email, service, role, password_hash }) =>
+  query.get(
+    `INSERT INTO users (username, display_name, email, service, role, password_hash)
+     VALUES (?, ?, ?, ?, ?, ?)
+     RETURNING *`,
+    [username, display_name, email, service, role, password_hash]
+  );
+
 const updateUser = (id, fields) => {
   const entries = Object.entries(fields);
   if (!entries.length) return findUserById(id);
@@ -23,4 +34,10 @@ const updateUser = (id, fields) => {
   return findUserById(id);
 };
 
-module.exports = { listUsers, findUserById, updateUser };
+const setPasswordHash = (id, hash) =>
+  query.run(
+    `UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`,
+    [hash, id]
+  );
+
+module.exports = { listUsers, findUserById, findUserByUsername, createUser, updateUser, setPasswordHash };
