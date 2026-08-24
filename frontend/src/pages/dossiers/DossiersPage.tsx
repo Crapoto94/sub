@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Plus } from 'lucide-react';
-import { listDossiers, STATUTS } from '../../api/dossiers';
+import { FolderOpen, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { deleteDossier, listCorbeille, listDossiers, purgeDossier, restoreDossier, STATUTS } from '../../api/dossiers';
 import type { DossierListItem, Statut } from '../../api/dossiers';
 import StatutBadge from '../../components/dossier/StatutBadge';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUT_LABELS: Record<Statut, string> = {
   brouillon: 'Brouillon',
@@ -14,8 +15,15 @@ const STATUT_LABELS: Record<Statut, string> = {
   refuse: 'Refusé',
 };
 
+function getApiError(err: unknown): string {
+  const anyErr = err as { response?: { data?: { error?: string } } };
+  return anyErr?.response?.data?.error || "L'opération a échoué";
+}
+
 export default function DossiersPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [items, setItems] = useState<DossierListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -23,30 +31,70 @@ export default function DossiersPage() {
   const [annee, setAnnee] = useState<number | undefined>(2027);
   const [statut, setStatut] = useState<Statut | ''>('');
   const [q, setQ] = useState('');
+  const [corbeille, setCorbeille] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
     try {
-      const data = await listDossiers({ annee, statut: statut || undefined, q: q || undefined, limit: 100, offset: 0 });
+      const data = corbeille
+        ? await listCorbeille({ q: q || undefined, limit: 100, offset: 0 })
+        : await listDossiers({ annee, statut: statut || undefined, q: q || undefined, limit: 100, offset: 0 });
       setItems(data.items);
       setTotal(data.total);
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { error?: string } } };
-      setError(anyErr?.response?.data?.error || 'Impossible de charger les dossiers');
+      setError(getApiError(err) || 'Impossible de charger les dossiers');
     } finally {
       setLoading(false);
     }
-  }, [annee, statut, q]);
+  }, [annee, statut, q, corbeille]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  async function handleDelete(d: DossierListItem) {
+    if (!window.confirm(`Mettre le dossier ${d.reference} à la corbeille ? Il pourra être restauré.`)) return;
+    try {
+      await deleteDossier(d.id);
+      await load();
+    } catch (err: unknown) {
+      setError(getApiError(err));
+    }
+  }
+
+  async function handleRestore(d: DossierListItem) {
+    try {
+      await restoreDossier(d.id);
+      await load();
+    } catch (err: unknown) {
+      setError(getApiError(err));
+    }
+  }
+
+  async function handlePurge(d: DossierListItem) {
+    if (!window.confirm(`Supprimer définitivement le dossier ${d.reference} ? Cette action est irréversible.`)) return;
+    try {
+      await purgeDossier(d.id);
+      await load();
+    } catch (err: unknown) {
+      setError(getApiError(err));
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-800">Dossiers de subvention</h1>
+      <h1 className="text-2xl font-semibold text-slate-800">
+        {corbeille ? 'Corbeille — dossiers supprimés' : 'Dossiers de subvention'}
+      </h1>
       <p className="mt-1 text-sm text-slate-500">
-        Demandes de subvention de fonctionnement des associations sportives ({total} dossier{total > 1 ? 's' : ''}).
+        {corbeille ? (
+          <>Dossiers mis à la corbeille ({total}). Restaurez-les ou supprimez-les définitivement.</>
+        ) : (
+          <>
+            Demandes de subvention de fonctionnement des associations sportives ({total} dossier
+            {total > 1 ? 's' : ''}).
+          </>
+        )}
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -86,6 +134,20 @@ export default function DossiersPage() {
           <Plus size={16} />
           Gérer les associations
         </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setCorbeille((v) => !v)}
+            className={`ml-auto inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium ${
+              corbeille
+                ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Trash2 size={16} />
+            {corbeille ? 'Retour aux dossiers' : 'Corbeille'}
+          </button>
+        )}
       </div>
 
       {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
@@ -98,7 +160,7 @@ export default function DossiersPage() {
               <th className="px-4 py-3">Association</th>
               <th className="px-4 py-3">Année</th>
               <th className="px-4 py-3">Statut</th>
-              <th className="px-4 py-3">Dernière mise à jour</th>
+              <th className="px-4 py-3">{corbeille ? 'Supprimé le' : 'Dernière mise à jour'}</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -123,18 +185,51 @@ export default function DossiersPage() {
                     <StatutBadge statut={d.statut} />
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {new Date(d.updatedAt).toLocaleDateString('fr-FR')}
+                    {new Date(corbeille ? d.deletedAt ?? d.updatedAt : d.updatedAt).toLocaleDateString('fr-FR')}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/dossiers/${d.id}`)}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        <FolderOpen size={14} />
-                        Consulter
-                      </button>
+                    <div className="flex justify-end gap-2">
+                      {!corbeille && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/dossiers/${d.id}`)}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          <FolderOpen size={14} />
+                          Consulter
+                        </button>
+                      )}
+                      {corbeille ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleRestore(d)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                          >
+                            <RotateCcw size={14} />
+                            Restaurer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePurge(d)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 size={14} />
+                            Définitif
+                          </button>
+                        </>
+                      ) : (
+                        isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(d)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 size={14} />
+                            Supprimer
+                          </button>
+                        )
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -142,7 +237,13 @@ export default function DossiersPage() {
             {!loading && !items.length && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
-                  Aucun dossier trouvé. Lancez d’abord le seed : <code>npm run seed</code> (backend).
+                  {corbeille ? (
+                    'La corbeille est vide.'
+                  ) : (
+                    <>
+                      Aucun dossier trouvé. Lancez d’abord le seed : <code>npm run seed</code> (backend).
+                    </>
+                  )}
                 </td>
               </tr>
             )}

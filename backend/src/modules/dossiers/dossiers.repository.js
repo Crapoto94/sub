@@ -77,9 +77,13 @@ const SECTIONS = {
   },
 };
 
-const listDossiers = ({ annee, statut, q, limit, offset }) => {
-  const where = [];
+const listDossiers = ({ annee, statut, q, deleted, limit, offset }) => {
+  const where = ['d.deleted_at IS NULL'];
   const params = [];
+  if (deleted) {
+    where.length = 0;
+    where.push('d.deleted_at IS NOT NULL');
+  }
   if (annee) {
     where.push('d.annee = ?');
     params.push(annee);
@@ -111,19 +115,19 @@ const listDossiers = ({ annee, statut, q, limit, offset }) => {
   return { total: n, items };
 };
 
-const findById = (id) =>
+const findById = (id, { includeDeleted = false } = {}) =>
   query.get(
     `SELECT d.*, a.nom_officiel_association, a.sigle_abreviation,
             f.montant_subvention_sollicitee AS sollicite
      FROM dossiers d
      LEFT JOIN associations a ON a.id = d.association_id
      LEFT JOIN dossier_situation_financiere f ON f.dossier_id = d.id
-     WHERE d.id = ?`,
+     WHERE d.id = ?${includeDeleted ? '' : ' AND d.deleted_at IS NULL'}`,
     [id]
   );
 
 const findByAssociationAndYear = (associationId, annee) =>
-  query.get('SELECT * FROM dossiers WHERE association_id = ? AND annee = ?', [associationId, annee]);
+  query.get('SELECT * FROM dossiers WHERE association_id = ? AND annee = ? AND deleted_at IS NULL', [associationId, annee]);
 
 const createDossier = ({ associationId, annee, statut, dateDepot, createdBy }) => {
   const row = query.get(
@@ -144,6 +148,30 @@ const updateDossier = (id, fields) => {
     [...Object.values(fields), id]
   );
   return findById(id);
+};
+
+const softDeleteDossier = (id, userId) => {
+  const { changes } = query.run(
+    `UPDATE dossiers SET deleted_at = datetime('now'), deleted_by = ?, updated_at = datetime('now')
+     WHERE id = ? AND deleted_at IS NULL`,
+    [userId ?? null, id]
+  );
+  return changes > 0 ? findById(id, { includeDeleted: true }) : undefined;
+};
+
+const restoreDossier = (id) => {
+  const { changes } = query.run(
+    `UPDATE dossiers SET deleted_at = NULL, deleted_by = NULL, updated_at = datetime('now')
+     WHERE id = ? AND deleted_at IS NOT NULL`,
+    [id]
+  );
+  return changes > 0 ? findById(id) : undefined;
+};
+
+const purgeDossier = (id) => {
+  // Les sections liées sont supprimées en cascade (ON DELETE CASCADE).
+  const { changes } = query.run('DELETE FROM dossiers WHERE id = ?', [id]);
+  return changes > 0;
 };
 
 const getSection = (dossierId, sectionName) => {
@@ -192,7 +220,7 @@ const upsertSection = (dossierId, sectionName, data) => {
 };
 
 const statsByYear = (annee) => {
-  const filter = annee ? 'WHERE annee = ?' : '';
+  const filter = annee ? 'WHERE deleted_at IS NULL AND annee = ?' : 'WHERE deleted_at IS NULL';
   const params = annee ? [annee] : [];
   const totals = query.get(
     `SELECT COUNT(*) AS total,
@@ -213,8 +241,7 @@ const statsByYear = (annee) => {
      JOIN dossiers d ON d.id = f.dossier_id
      ${filter}`,
     params
-  );
-  return { ...totals, sollicite: finances.sollicite, accorde_montant: finances.accorde_montant };
+  );  return { ...totals, sollicite: finances.sollicite, accorde_montant: finances.accorde_montant };
 };
 
 module.exports = {
@@ -224,6 +251,9 @@ module.exports = {
   findByAssociationAndYear,
   createDossier,
   updateDossier,
+  softDeleteDossier,
+  restoreDossier,
+  purgeDossier,
   getSection,
   upsertSection,
   statsByYear,

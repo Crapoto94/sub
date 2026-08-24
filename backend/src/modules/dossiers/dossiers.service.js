@@ -184,11 +184,13 @@ function publicDossier(d) {
     createdBy: d.created_by ?? null,
     createdAt: d.created_at,
     updatedAt: d.updated_at,
+    deletedAt: d.deleted_at ?? null,
+    deletedBy: d.deleted_by ?? null,
   };
 }
 
-function list({ annee, statut, q, limit, offset }) {
-  const result = repository.listDossiers({ annee, statut, q, limit, offset });
+function list({ annee, statut, q, deleted, limit, offset }) {
+  const result = repository.listDossiers({ annee, statut, q, deleted: Boolean(deleted), limit, offset });
   return { total: result.total, items: result.items.map(publicDossier) };
 }
 
@@ -252,6 +254,64 @@ function patch(id, { statut, dateDepot }) {
   return publicDossier(updated);
 }
 
+function remove(id, user) {
+  const existing = repository.findById(id, { includeDeleted: true });
+  if (!existing) {
+    const err = new Error('Dossier introuvable');
+    err.status = 404;
+    throw err;
+  }
+  if (existing.deleted_at) {
+    const err = new Error('Ce dossier est déjà dans la corbeille');
+    err.status = 409;
+    throw err;
+  }
+  return publicDossier(repository.softDeleteDossier(id, user ? (user.id ?? user.sub) : null));
+}
+
+function restore(id) {
+  const existing = repository.findById(id, { includeDeleted: true });
+  if (!existing) {
+    const err = new Error('Dossier introuvable');
+    err.status = 404;
+    throw err;
+  }
+  if (!existing.deleted_at) {
+    const err = new Error("Ce dossier n'est pas dans la corbeille");
+    err.status = 409;
+    throw err;
+  }
+  const restored = repository.restoreDossier(id);
+  if (!restored) {
+    // Un dossier actif existe peut-être déjà pour cette association/année.
+    const err = new Error('Restauration impossible');
+    err.status = 409;
+    throw err;
+  }
+  return publicDossier(restored);
+}
+
+function purge(id) {
+  const existing = repository.findById(id, { includeDeleted: true });
+  if (!existing) {
+    const err = new Error('Dossier introuvable');
+    err.status = 404;
+    throw err;
+  }
+  if (!existing.deleted_at) {
+    const err = new Error('Le dossier doit être dans la corbeille avant une suppression définitive');
+    err.status = 409;
+    throw err;
+  }
+  const purged = repository.purgeDossier(id);
+  if (!purged) {
+    const err = new Error('Suppression définitive impossible');
+    err.status = 409;
+    throw err;
+  }
+  return { id, reference: existing.reference, purged: true };
+}
+
 function saveSection(id, sectionName, input) {
   if (!repository.SECTIONS[sectionName]) {
     const err = new Error('Section inconnue');
@@ -296,4 +356,4 @@ function stats({ annee }) {
   };
 }
 
-module.exports = { list, get, create, patch, saveSection, stats, STATUTS };
+module.exports = { list, get, create, patch, remove, restore, purge, saveSection, stats, STATUTS };

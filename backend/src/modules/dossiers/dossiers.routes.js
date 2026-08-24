@@ -1,6 +1,6 @@
 const express = require('express');
 const dossiersController = require('./dossiers.controller');
-const { authRequired } = require('../../middlewares/auth');
+const { authRequired, adminRequired } = require('../../middlewares/auth');
 
 const router = express.Router();
 router.use(authRequired);
@@ -81,6 +81,33 @@ router.get('/stats', dossiersController.stats);
 
 /**
  * @swagger
+ * /api/v1/dossiers/corbeille:
+ *   get:
+ *     summary: Corbeille — dossiers supprimés (restaurables), réservé aux admins
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: annee
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: q
+ *         schema: { type: string }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 50 }
+ *       - in: query
+ *         name: offset
+ *         schema: { type: integer, default: 0 }
+ *     responses:
+ *       200: { description: Dossiers dans la corbeille (deletedAt/deletedBy renseignés) }
+ *       401: { description: Non authentifié }
+ *       403: { description: Réservé aux administrateurs }
+ */
+router.get('/corbeille', adminRequired, dossiersController.listCorbeille);
+
+/**
+ * @swagger
  * /api/v1/dossiers/{id}:
  *   get:
  *     summary: Détail d'un dossier avec toutes ses sections
@@ -117,6 +144,87 @@ router.get('/stats', dossiersController.stats);
  */
 router.get('/:id', dossiersController.get);
 router.patch('/:id', dossiersController.patch);
+
+/**
+ * @swagger
+ * /api/v1/dossiers/{id}:
+ *   delete:
+ *     summary: Mettre un dossier à la corbeille (suppression logique, réservé aux admins)
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Dossier supprimé (deletedAt/deletedBy renseignés)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id: { type: integer }
+ *                 deletedAt: { type: string, nullable: true }
+ *                 deletedBy: { type: integer, nullable: true }
+ *       401: { description: Non authentifié }
+ *       403: { description: Réservé aux administrateurs }
+ *       404: { description: Dossier introuvable }
+ *       409: { description: Dossier déjà dans la corbeille }
+ */
+router.delete('/:id', adminRequired, dossiersController.remove);
+
+/**
+ * @swagger
+ * /api/v1/dossiers/{id}/restore:
+ *   post:
+ *     summary: Restaurer un dossier depuis la corbeille (réservé aux admins)
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Dossier restauré }
+ *       401: { description: Non authentifié }
+ *       403: { description: Réservé aux administrateurs }
+ *       404: { description: Dossier introuvable }
+ *       409: { description: Le dossier n'est pas dans la corbeille }
+ */
+router.post('/:id/restore', adminRequired, dossiersController.restore);
+
+/**
+ * @swagger
+ * /api/v1/dossiers/{id}/purge:
+ *   delete:
+ *     summary: Suppression définitive d'un dossier de la corbeille (réservé aux admins)
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Dossier définitivement supprimé (sections incluses)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id: { type: integer }
+ *                 reference: { type: string }
+ *                 purged: { type: boolean }
+ *       401: { description: Non authentifié }
+ *       403: { description: Réservé aux administrateurs }
+ *       404: { description: Dossier introuvable }
+ *       409: { description: Le dossier doit d'abord être mis à la corbeille }
+ */
+router.delete('/:id/purge', adminRequired, dossiersController.purge);
 
 /**
  * @swagger

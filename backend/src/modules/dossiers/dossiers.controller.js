@@ -56,4 +56,44 @@ function stats(req, res, next) {
   }
 }
 
-module.exports = { list, get, create, patch, saveSection, stats };
+function listCorbeille(req, res, next) {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    res.json(dossiersService.list({
+      annee: req.query.annee ? Number(req.query.annee) : undefined,
+      q: req.query.q,
+      deleted: true,
+      limit,
+      offset,
+    }));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function remove(req, res, next) {
+  try {
+    res.json(dossiersService.remove(Number(req.params.id), req.user));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function restore(req, res, next) {
+  try {
+    res.json(dossiersService.restore(Number(req.params.id)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function purge(req, res, next) {
+  try {
+    res.json(dossiersService.purge(Number(req.params.id)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, listCorbeille, get, create, patch, remove, restore, purge, saveSection, stats };
