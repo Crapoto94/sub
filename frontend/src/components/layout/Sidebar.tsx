@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldCheck, LogOut, HandCoins, FolderOpen, Users, Sparkles } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, LogOut, FolderOpen, Users, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { APP_VERSION } from '../../lib/appMeta';
 import WhatsNewModal from './WhatsNewModal';
@@ -38,9 +38,7 @@ export default function Sidebar() {
     >
       <div className="border-b border-slate-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white">
-            <HandCoins size={18} />
-          </div>
+          <img src="/logo-ivry.jpg" alt="Logo Ville d'Ivry" className="h-10 w-10 rounded-lg object-cover" />
           <div>
             <p className="text-sm font-semibold text-slate-800">Subventions</p>
             <p className="text-xs text-slate-500">Ville d’Ivry-sur-Seine</p>
