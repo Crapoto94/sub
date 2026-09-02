@@ -12,6 +12,7 @@ const authService = require('./src/modules/auth/auth.service');
 const usersRoutes = require('./src/modules/users/users.routes');
 const associationsRoutes = require('./src/modules/associations/associations.routes');
 const dossiersRoutes = require('./src/modules/dossiers/dossiers.routes');
+const importRoutes = require('./src/modules/import/import.routes');
 const statusRoutes = require('./src/modules/system/status.routes');
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/associations', associationsRoutes);
 app.use('/api/v1/dossiers', dossiersRoutes);
+app.use('/api/v1/import', importRoutes);
 app.use('/api/status', statusRoutes);
 
 app.use(notFound);

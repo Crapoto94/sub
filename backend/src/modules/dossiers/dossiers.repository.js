@@ -1,5 +1,71 @@
 const { query } = require('../../db/sqlite');
 
+// camelCase -> snake_case (« nombreBeneficiairesPassSport » -> « nombre_beneficiaires_pass_sport »).
+function toSnake(key) {
+  return String(key)
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/([a-zA-Z])(\d{4})/g, '$1_$2')
+    .toLowerCase();
+}
+
+// Convertit un objet clés camelCase en ligne SQL : seules les colonnes existantes
+// dans la table sont conservées, avec le bon nom snake_case (alias appliqués).
+const ALIAS = {
+  // Handicap.
+  personne_situation_handicap: 'personnes_en_situation_handicap',
+  personne_en_situation_handicap: 'personnes_en_situation_handicap',
+  personnes_situation_handicap: 'personnes_en_situation_handicap',
+  // Pass'Sport (colonne « passsport », sans tiret).
+  beneficiaire_pass_sport: 'nombre_beneficiaires_passsport',
+  beneficiaires_pass_sport: 'nombre_beneficiaires_passsport',
+  nombre_beneficiaire_pass_sport: 'nombre_beneficiaires_passsport',
+  nombre_beneficiaires_pass_sport: 'nombre_beneficiaires_passsport',
+  nombre_beneficiaires_passsport: 'nombre_beneficiaires_passsport',
+  // Tranches d'âge (colonne « _ans »). Le camelCase produit « _0_5 » sans
+  // trait d'union ; on normalise explicitement les deux formes.
+  petite_enfance_0_5: 'petite_enfance_0_5_ans',
+  petite_enfance0_5: 'petite_enfance_0_5_ans',
+  enfance_6_14: 'enfance_6_14_ans',
+  enfance6_14: 'enfance_6_14_ans',
+  adolescents_15_18: 'adolescents_15_18_ans',
+  adolescents15_18: 'adolescents_15_18_ans',
+  jeunes_19_29: 'jeunes_19_29_ans',
+  jeunes19_29: 'jeunes_19_29_ans',
+  adultes_30_59: 'adultes_30_59_ans',
+  adultes30_59: 'adultes_30_59_ans',
+  seniors_60_74: 'seniors_60_74_ans',
+  seniors60_74: 'seniors_60_74_ans',
+  // Grand âge.
+  grand_age_75_plus: 'grand_age_75_ans_et_plus',
+  grand_age75_plus: 'grand_age_75_ans_et_plus',
+  grand_age_75_ans_et_plus: 'grand_age_75_ans_et_plus',
+};
+function normalizeRow(section, data) {
+  const allowed = new Set(section.columns);
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (v === undefined || v === null || v === '') continue;
+    const snake = toSnake(k);
+    let col = ALIAS[snake] || snake;
+    if (!allowed.has(col)) {
+      // Clés annuelles (ex. *_N1, *_prev, *_2025) : on les conserve uniquement si
+      // la colonne correspondante existe dans le schéma ; sinon on les ignore.
+      const m = snake.match(/^(.+?)_(n1|prev|2025|2026|2027)$/);
+      if (m) {
+        const base = ALIAS[m[1]] || m[1];
+        const suffixed = base + '_' + m[2];
+        if (allowed.has(suffixed)) col = suffixed;
+        else continue;
+      } else {
+        continue;
+      }
+    }
+    out[col] = v;
+  }
+  return out;
+}
+
 const DOSSIER_COLUMNS = ['id', 'reference', 'association_id', 'annee', 'statut', 'date_depot', 'created_by', 'created_at', 'updated_at'];
 
 const SECTIONS = {
@@ -13,6 +79,20 @@ const SECTIONS = {
       'adultes_30_59_ans', 'seniors_60_74_ans', 'grand_age_75_ans_et_plus',
       'personnes_en_situation_handicap', 'beneficiaires_tarifs_reduits_sociaux',
       'actions_publics_eloignes', 'nombre_beneficiaires_passsport',
+      // N-1 (exercice 2025)
+      'ivryens_n1', 'non_ivryens_n1', 'femmes_n1', 'hommes_n1', 'salaries_n1',
+      'etudiants_n1', 'demandeurs_emploi_n1', 'retraites_n1', 'non_communique_n1',
+      'petite_enfance_0_5_ans_n1', 'enfance_6_14_ans_n1', 'adolescents_15_18_ans_n1',
+      'jeunes_19_29_ans_n1', 'adultes_30_59_ans_n1', 'seniors_60_74_ans_n1',
+      'grand_age_75_ans_et_plus_n1', 'personnes_en_situation_handicap_n1',
+      'beneficiaires_tarifs_reduits_sociaux_n1', 'nombre_beneficiaires_passsport_n1',
+      // Prévisionnel (2027)
+      'ivryens_prev', 'non_ivryens_prev', 'femmes_prev', 'hommes_prev', 'salaries_prev',
+      'etudiants_prev', 'demandeurs_emploi_prev', 'retraites_prev', 'non_communique_prev',
+      'petite_enfance_0_5_ans_prev', 'enfance_6_14_ans_prev', 'adolescents_15_18_ans_prev',
+      'jeunes_19_29_ans_prev', 'adultes_30_59_ans_prev', 'seniors_60_74_ans_prev',
+      'grand_age_75_ans_et_plus_prev', 'personnes_en_situation_handicap_prev',
+      'beneficiaires_tarifs_reduits_sociaux_prev', 'nombre_beneficiaires_passsport_prev',
     ],
   },
   'vie-associative': {
@@ -186,19 +266,20 @@ const upsertSection = (dossierId, sectionName, data) => {
   const section = SECTIONS[sectionName];
 
   if (section.single) {
-    const columns = Object.keys(data);
+    const columns = Object.keys(normalizeRow(section, data));
     if (!columns.length) return getSection(dossierId, sectionName);
+    const row = normalizeRow(section, data);
     const existing = query.get(`SELECT id FROM ${section.table} WHERE dossier_id = ?`, [dossierId]);
     if (existing) {
       const sets = columns.map((c) => `${c} = ?`);
       query.run(
         `UPDATE ${section.table} SET ${sets.join(', ')} WHERE dossier_id = ?`,
-        [...columns.map((c) => data[c]), dossierId]
+        [...columns.map((c) => row[c]), dossierId]
       );
     } else {
       query.run(
         `INSERT INTO ${section.table} (dossier_id, ${columns.join(', ')}) VALUES (?, ${columns.map(() => '?').join(', ')})`,
-        [dossierId, ...columns.map((c) => data[c])]
+        [dossierId, ...columns.map((c) => row[c])]
       );
     }
     return getSection(dossierId, sectionName);
@@ -206,10 +287,9 @@ const upsertSection = (dossierId, sectionName, data) => {
 
   // Sections multiples : remplacement complet.
   query.run('DELETE FROM ' + section.table + ' WHERE dossier_id = ?', [dossierId]);
-  for (const row of data) {
-    const cols = Object.keys(row).filter(
-      (c) => row[c] !== undefined && row[c] !== null && row[c] !== ''
-    );
+  for (const rawRow of data) {
+    const row = normalizeRow(section, rawRow);
+    const cols = Object.keys(row);
     if (!cols.length) continue;
     query.run(
       `INSERT INTO ${section.table} (dossier_id, ${cols.join(', ')}) VALUES (?, ${cols.map(() => '?').join(', ')})`,
