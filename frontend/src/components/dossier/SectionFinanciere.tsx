@@ -4,6 +4,10 @@ import type { SituationFinanciereSection, TableauFinancierRow } from '../../type
 import DossierSection from './DossierSection';
 import { evolutionClass, formatEur, formatNumber, formatPercent } from './format';
 
+// Zone de défilement (largeur + hauteur) avec barre épaissie visible,
+// pour consulter toutes les colonnes et toutes les lignes des tableaux.
+const SCROLL_AREA = 'scrollbar-thick max-h-[70vh] overflow-auto rounded-md border border-slate-100';
+
 function formatPctPlain(v: number | null): string {
   if (v === null || v === undefined) return '—';
   return `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`;
@@ -157,17 +161,18 @@ export default function SectionFinanciere({
             Détail du tableau financier — charges / produits
           </p>
           {lignes.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] border-collapse text-[12.5px]">
+          <div className={SCROLL_AREA}>
+            <table className="w-full min-w-[1100px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="w-20 px-2 py-2 font-medium">N° Cpte</th>
-                  <th className="px-2 py-2 font-medium">Libellé</th>
-                  <th className="px-2 py-2 text-right font-medium">Exercice 2025</th>
-                  <th className="px-2 py-2 text-right font-medium">Exercice 2026</th>
-                  <th className="px-2 py-2 text-right font-medium">Prévi. 2027</th>
-                  <th className="px-2 py-2 text-right font-medium">Écart</th>
-                  <th className="px-2 py-2 text-right font-medium">Évol.</th>
+                  <th className="sticky top-0 z-10 w-20 bg-slate-50 px-2 py-2 font-medium">N° Cpte</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 font-medium">Libellé</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Exercice 2025</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Exercice 2026</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Prévi. 2027</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Écart</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Évol.</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 font-medium">Notes / Justifications</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,7 +180,7 @@ export default function SectionFinanciere({
                   if (l.type === 'titre') {
                     return (
                       <tr key={l.id} className="bg-[#173F73] text-white">
-                        <td colSpan={7} className="px-2 py-1.5 text-[12px] font-semibold uppercase tracking-wide">
+                        <td colSpan={8} className="px-2 py-1.5 text-[12px] font-semibold uppercase tracking-wide">
                           {l.libelle}
                         </td>
                       </tr>
@@ -184,7 +189,7 @@ export default function SectionFinanciere({
                   if (l.type === 'rubrique') {
                     return (
                       <tr key={l.id} className="bg-slate-100 text-slate-700">
-                        <td colSpan={7} className="px-2 py-1.5 text-[12px] font-medium">
+                        <td colSpan={8} className="px-2 py-1.5 text-[12px] font-medium">
                           {l.libelle}
                         </td>
                       </tr>
@@ -220,6 +225,7 @@ export default function SectionFinanciere({
                       <td className={`px-2 py-1.5 text-right tabular-nums ${evolutionClass(l.evol)}`}>
                         {formatPercent(evolPercent(l.evol))}
                       </td>
+                      <td className="px-2 py-1.5 text-[11.5px] text-slate-500">{l.note ?? ''}</td>
                     </tr>
                   );
                 })}
@@ -233,14 +239,14 @@ export default function SectionFinanciere({
       {indicateurs.length > 0 && (
         <div className="mt-8">
           <p className="mb-3 text-[13px] font-semibold text-slate-600">Indicateurs automatiques</p>
-          <div className="overflow-x-auto">
+          <div className={SCROLL_AREA}>
             <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="px-2 py-2 font-medium">Indicateur</th>
-                  <th className="px-2 py-2 text-right font-medium">Exercice 2025</th>
-                  <th className="px-2 py-2 text-right font-medium">Exercice 2026</th>
-                  <th className="px-2 py-2 text-right font-medium">Prévi. 2027</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 font-medium">Indicateur</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Exercice 2025</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Exercice 2026</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Prévi. 2027</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,14 +275,14 @@ export default function SectionFinanciere({
       {contributions.length > 0 && (
         <div className="mt-8">
           <p className="mb-3 text-[13px] font-semibold text-slate-600">Contributions volontaires en nature</p>
-          <div className="overflow-x-auto">
+          <div className={SCROLL_AREA}>
             <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="bg-slate-50 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="px-2 py-2 font-medium">Élément</th>
-                  <th className="px-2 py-2 text-right font-medium">Exercice 2025</th>
-                  <th className="px-2 py-2 text-right font-medium">Exercice 2026</th>
-                  <th className="px-2 py-2 text-right font-medium">Prévi. 2027</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 font-medium">Élément</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Exercice 2025</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Exercice 2026</th>
+                  <th className="sticky top-0 z-10 bg-slate-50 px-2 py-2 text-right font-medium">Prévi. 2027</th>
                 </tr>
               </thead>
               <tbody>
