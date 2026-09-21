@@ -115,6 +115,15 @@ const SECTIONS = {
       'montant_subvention_sollicitee', 'justification_montant_demande',
     ],
   },
+  // Détail du tableau financier (charges / produits) repris du fichier importé.
+  'tableau-financier': {
+    table: 'dossier_tableau_financier',
+    single: false,
+    columns: [
+      'ordre', 'categorie', 'type', 'numero_compte', 'libelle',
+      'montant_2025', 'montant_2026', 'montant_2027', 'ecart', 'evol', 'note',
+    ],
+  },
   'niveaux-sportifs': {
     table: 'dossier_niveaux_sportifs',
     single: false,

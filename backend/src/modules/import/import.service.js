@@ -164,6 +164,11 @@ function importFiles({ annee, files }, user) {
     sections['situation-financiere'] = Object.fromEntries(Object.entries(fin).filter(([, v]) => cleanSection(v)));
   }
 
+  // 3c bis) Détail du tableau financier (charges / produits ligne à ligne).
+  if (parsed.financier && Array.isArray(parsed.financier.detail) && parsed.financier.detail.length) {
+    sections['tableau-financier'] = parsed.financier.detail;
+  }
+
   // 3d) Niveaux sportifs.
   if (Array.isArray(parsed.dossier.niveauxSportifs) && parsed.dossier.niveauxSportifs.length) {
     sections['niveaux-sportifs'] = parsed.dossier.niveauxSportifs;

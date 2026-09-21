@@ -134,6 +134,31 @@ export interface SituationFinanciereSection {
   subventionVille2027: number | null;
 }
 
+export type TableauFinancierType =
+  | 'titre'
+  | 'rubrique'
+  | 'ligne'
+  | 'sous-total'
+  | 'total'
+  | 'indicateur'
+  | 'benevole'
+  | 'periode';
+
+export interface TableauFinancierRow {
+  id: number;
+  ordre: number;
+  categorie: 'charge' | 'produit' | string;
+  type: TableauFinancierType | string;
+  numeroCompte: string | null;
+  libelle: string | null;
+  montant2025: number | null;
+  montant2026: number | null;
+  montant2027: number | null;
+  ecart: number | null;
+  evol: number | null;
+  note: string | null;
+}
+
 export interface FinancementRow {
   id: number;
   financeur: string | null;

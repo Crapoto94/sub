@@ -11,6 +11,7 @@ import type {
   ProjetRow,
   TarifRow,
   SituationFinanciereSection,
+  TableauFinancierRow,
   FinancementRow,
   PieceRow,
   SyntheseSection,
@@ -90,6 +91,7 @@ export default function DossierAssociation() {
   const projetsPrevus = (sections['projets-prevus'] ?? []) as ProjetRow[];
   const tarifs = (sections['politique-tarifaire'] ?? []) as TarifRow[];
   const fin = sections['situation-financiere'] as SituationFinanciereSection;
+  const tableauFinancier = (sections['tableau-financier'] ?? []) as TableauFinancierRow[];
   const financements = (sections['autres-subventions'] ?? []) as FinancementRow[];
   const pieces = (sections.pieces ?? []) as PieceRow[];
   const synthese = sections.synthese as SyntheseSection | undefined;
@@ -112,7 +114,7 @@ export default function DossierAssociation() {
           <SectionProjets numero={5} titre="Projets réalisés" id="section-5" projets={projetsRealises} />
           <SectionProjets numero={6} titre="Projets prévus" id="section-6" projets={projetsPrevus} prevu />
           <SectionTarifaire tarifs={tarifs} />
-          <SectionFinanciere fin={fin} />
+          <SectionFinanciere fin={fin} detail={tableauFinancier} associationNom={association?.nomOfficielAssociation} />
           <SectionFinancements financements={financements} />
           <SectionPieces pieces={pieces} />
           <SectionSynthese synthese={synthese} />
