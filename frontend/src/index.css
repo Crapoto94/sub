@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Barres de défilement épaissies de la Synthèse Globale. */
+.scrollbar-thick,
+.scrollbar-thick-6 {
+  scrollbar-width: auto;
+  scrollbar-color: #173f73 #dbe4f0;
+}
+.scrollbar-thick::-webkit-scrollbar,
+.scrollbar-thick-6::-webkit-scrollbar {
+  height: 16px;
+  width: 16px;
+}
+.scrollbar-thick::-webkit-scrollbar-track,
+.scrollbar-thick-6::-webkit-scrollbar-track {
+  background: #dbe4f0;
+  border-radius: 9999px;
+}
+.scrollbar-thick::-webkit-scrollbar-thumb,
+.scrollbar-thick-6::-webkit-scrollbar-thumb {
+  background: #173f73;
+  border: 3px solid #dbe4f0;
+  border-radius: 9999px;
+}
+.scrollbar-thick::-webkit-scrollbar-thumb:hover,
+.scrollbar-thick-6::-webkit-scrollbar-thumb:hover {
+  background: #0f2a52;
+}
+
+/* Barres épaisses : 96px (barre flottante + tableau). */
+.scrollbar-thick-6::-webkit-scrollbar {
+  height: 96px;
+  width: 96px;
+}
+.scrollbar-thick-6::-webkit-scrollbar-thumb {
+  border-width: 18px;
+}

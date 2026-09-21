@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { AlertCircle, FileSpreadsheet, LayoutGrid, Pencil, Printer } from 'lucide-react';
 import type { Consolidation, ConsolidationCell, ConsolidationLigne } from '../../api/dossiers';
@@ -44,6 +44,15 @@ const AVIS_WIDTH = 240;
 
 const AVIS_KEYS: Set<string> = new Set(CONSOLIDATION_AVIS_COLONNES);
 
+// Alternance bleu ciel / rose clair des colonnes des deux lignes d'en-tête
+// (ligne des groupes puis ligne des noms de colonnes).
+const COULEUR_BLEU_CIEL = '#E0F2FE';
+const COULEUR_ROSE_CLAIR = '#FCE7F3';
+
+function couleurAlternance(index: number): string {
+  return index % 2 === 0 ? COULEUR_BLEU_CIEL : COULEUR_ROSE_CLAIR;
+}
+
 function stickyStyle(globalIndex: number): CSSProperties | undefined {
   if (globalIndex === 0) return { left: 0, minWidth: CODE_WIDTH, maxWidth: CODE_WIDTH };
   if (globalIndex === 1) return { left: CODE_WIDTH, minWidth: NAME_WIDTH, maxWidth: NAME_WIDTH };
@@ -76,7 +85,48 @@ export default function SectionSyntheseGlobale({
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [avisError, setAvisError] = useState('');
 
+  // Barre de défilement horizontale flottante (toujours visible tant que la
+  // rubrique est à l'écran) : on en mesure la largeur de contenu et on la
+  // synchronise avec le défilement du tableau.
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const barScrollRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [needsHScroll, setNeedsHScroll] = useState(false);
+
   const colonnes = consolidation ? consolidation.groupes.flatMap((g) => g.colonnes) : [];
+
+  const syncScrollbar = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    setContentWidth(el.scrollWidth);
+    setNeedsHScroll(el.scrollWidth > el.clientWidth + 1);
+  }, []);
+
+  useEffect(() => {
+    syncScrollbar();
+    const el = tableScrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(syncScrollbar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [syncScrollbar, consolidation, loading]);
+
+  useEffect(() => {
+    window.addEventListener('resize', syncScrollbar);
+    return () => window.removeEventListener('resize', syncScrollbar);
+  }, [syncScrollbar]);
+
+  const handleTableScroll = () => {
+    const bar = barScrollRef.current;
+    const el = tableScrollRef.current;
+    if (bar && el && bar.scrollLeft !== el.scrollLeft) bar.scrollLeft = el.scrollLeft;
+  };
+
+  const handleBarScroll = () => {
+    const bar = barScrollRef.current;
+    const el = tableScrollRef.current;
+    if (bar && el && el.scrollLeft !== bar.scrollLeft) el.scrollLeft = bar.scrollLeft;
+  };
 
   // Nouvelle consolidation (changement d'année, rechargement) : on repart des valeurs serveur.
   useEffect(() => {
@@ -209,8 +259,9 @@ export default function SectionSyntheseGlobale({
               <code>npm run seed</code> (backend).
             </p>
           ) : (
-            <div className="mt-5 overflow-x-auto">
-              <table className="w-full border-collapse text-[12.5px]">
+            <div className="mt-5">
+              <div ref={tableScrollRef} className="scrollbar-thick-6 overflow-x-auto" onScroll={handleTableScroll}>
+                <table className="w-full border-collapse text-[12.5px]">
                 <caption className="sr-only">{consolidation.titre}</caption>
                 <thead>
                   <tr>
@@ -221,33 +272,40 @@ export default function SectionSyntheseGlobale({
                     </th>
                   </tr>
                   <tr>
-                    {consolidation.groupes.map((g) => (
+                    {consolidation.groupes.map((g, gi) => (
                       <th
                         key={g.titre}
                         colSpan={g.colonnes.length}
-                        className="border-b border-r border-slate-200 bg-[#173F73]/5 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#173F73]"
+                        className="border-b border-r border-slate-200 px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#173F73]"
+                        style={{ backgroundColor: couleurAlternance(gi) }}
                       >
                         {g.titre}
                       </th>
                     ))}
                   </tr>
                   <tr>
-                    {colonnes.map((c, gi) => (
-                      <th
-                        key={c.key}
-                        title={c.titre}
-                        className={`border-b border-r border-slate-200 px-2 py-1.5 text-left text-[11px] font-medium text-slate-600 ${
-                          AVIS_KEYS.has(c.key) ? 'bg-indigo-50/60' : 'bg-slate-50'
-                        } ${stickyClass(gi, 'bg-slate-50', 'z-20')}`}
-                        style={stickyStyle(gi) ?? (AVIS_KEYS.has(c.key) ? { minWidth: AVIS_WIDTH } : undefined)}
-                      >
-                        <span className="flex items-center gap-1 pb-0.5 font-mono text-[10px] text-slate-400">
-                          {c.key}
-                          {AVIS_KEYS.has(c.key) && <Pencil size={10} className="text-indigo-400" />}
-                        </span>
-                        {c.titre}
-                      </th>
-                    ))}
+                    {colonnes.map((c, gi) => {
+                      const baseStyle =
+                        stickyStyle(gi) ?? (AVIS_KEYS.has(c.key) ? { minWidth: AVIS_WIDTH } : undefined);
+                      return (
+                        <th
+                          key={c.key}
+                          title={c.titre}
+                          className={`border-b border-r border-slate-200 px-2 py-1.5 text-left text-[11px] font-medium text-slate-600 ${stickyClass(
+                            gi,
+                            '',
+                            'z-20'
+                          )}`}
+                          style={{ ...(baseStyle ?? {}), backgroundColor: couleurAlternance(gi) }}
+                        >
+                          <span className="flex items-center gap-1 pb-0.5 font-mono text-[10px] text-slate-400">
+                            {c.key}
+                            {AVIS_KEYS.has(c.key) && <Pencil size={10} className="text-indigo-400" />}
+                          </span>
+                          {c.titre}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -311,6 +369,19 @@ export default function SectionSyntheseGlobale({
                   </tr>
                 </tbody>
               </table>
+              </div>
+              {needsHScroll && (
+                <div className="sticky bottom-0 z-30 -mx-5 border-t border-slate-200 bg-white px-5 py-1">
+                  <div
+                    ref={barScrollRef}
+                    className="scrollbar-thick-6 overflow-x-auto overflow-y-hidden"
+                    onScroll={handleBarScroll}
+                    aria-hidden="true"
+                  >
+                    <div style={{ width: contentWidth }} className="h-0.5" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
