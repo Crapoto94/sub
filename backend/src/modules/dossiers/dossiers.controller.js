@@ -1,4 +1,6 @@
 const dossiersService = require('./dossiers.service');
+const { buildConsolidation } = require('./consolidation');
+const { buildxlsxExport } = require('./consolidation-export');
 
 function list(req, res, next) {
   try {
@@ -48,9 +50,37 @@ function saveSection(req, res, next) {
   }
 }
 
+function saveAvis(req, res, next) {
+  try {
+    const body = req.body || {};
+    res.json(dossiersService.saveAvis(Number(req.params.id), body.colonne, body.valeur));
+  } catch (err) {
+    next(err);
+  }
+}
+
 function stats(req, res, next) {
   try {
     res.json(dossiersService.stats({ annee: req.query.annee ? Number(req.query.annee) : undefined }));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function consolidation(req, res, next) {
+  try {
+    res.json(buildConsolidation({ annee: req.query.annee ? Number(req.query.annee) : undefined }));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function exportExcel(req, res, next) {
+  try {
+    const { filename, buffer } = buildxlsxExport({ annee: req.query.annee ? Number(req.query.annee) : undefined });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   } catch (err) {
     next(err);
   }
@@ -96,4 +126,4 @@ function purge(req, res, next) {
   }
 }
 
-module.exports = { list, listCorbeille, get, create, patch, remove, restore, purge, saveSection, stats };
+module.exports = { list, listCorbeille, get, create, patch, remove, restore, purge, saveSection, saveAvis, stats, consolidation, exportExcel };

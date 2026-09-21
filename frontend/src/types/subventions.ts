@@ -150,3 +150,9 @@ export interface PieceRow {
   dateDepot: string | null;
   valide: number | null;
 }
+
+export interface SyntheseSection {
+  introduction: string | null;
+  compteRendu: string[];
+  appreciation: string | null;
+}

@@ -84,6 +84,7 @@ Chaque module suit le même découpage : `*.repository.js` (SQL brut) → `*.ser
 | 8 | Situation financière | `dossier_situation_financiere` | non |
 | 9 | Autres subventions / financements | `dossier_autres_subventions` | oui |
 | 10 | Pièces justificatives | `dossier_pieces` | oui |
+| 11 | Synthèse de l'association | *(générée)* | non |
 
 ### Endpoints API (`/api/v1`)
 
@@ -98,6 +99,9 @@ Chaque module suit le même découpage : `*.repository.js` (SQL brut) → `*.ser
 | GET | `/associations/:id` · PATCH `/associations/:id` | Détail / mise à jour (admin). |
 | GET | `/dossiers` · POST `/dossiers` | Liste (filtres `annee`, `statut`, `q`) / création. |
 | GET | `/dossiers/stats` | Statistiques annuelles (total, associations, par statut, montants sollicités/accordés). |
+| GET | `/dossiers/consolidation` | Tableau « Synthèse Globale » (structure Consolidation.xlsx) recalculé à la volée depuis les dossiers (filtre `annee`). |
+| GET | `/dossiers/consolidation/export` | Export Excel (`.xlsx`) du tableau de consolidation — titre/groupes fusionnés, ligne TOTAUX, formats numériques/%. |
+| PUT | `/dossiers/:id/avis` | Enregistre une réponse libre de la Synthèse Globale (`colonne` ∈ ER→EY, `valeur` ; vide = suppression) dans `consolidation_avis`. |
 | GET | `/dossiers/:id` | Détail dossier + toutes les sections. |
 | PATCH | `/dossiers/:id` | Changement de `statut` / `dateDepot`. |
 | PUT | `/dossiers/:id/sections/:section` | Écriture d'une section (upsert si unique, remplacement complet si multiple). |
@@ -111,6 +115,9 @@ Chaque module suit le même découpage : `*.repository.js` (SQL brut) → `*.ser
 - **Identifiant du créateur** : issu du JWT — `user.id ?? user.sub` (le JWT ne porte pas `id`, seulement `sub`).
 - **Mapping API ↔ SQL** : le service dossiers centralise le mapping camelCase (API) → snake_case (SQL) dans `SECTION_API_MAP` ; toute nouvelle colonne doit y être déclarée.
 - **Historique** : l'interface « classeur Excel » exige Saison N-1 / N / Prévisionnel et exercices 2025 / 2027 → stocké en **colonnes** (`_n1`, `_prev`, `_2025`, `_2027`), pas en lignes.
+- **Consolidation (Synthèse Globale)** : la structure (groupes + 155 titres de colonnes) est reproduite dans `backend/src/modules/dossiers/consolidation.structure.js` depuis `DOCS/Consolidation.xlsx` ; `consolidation.js` recalcule chaque valeur depuis les dossiers (`service.list` → exclut les `brouillon`) à l'instant de la requête — jamais lue depuis le fichier Excel. Colonnes sans équivalent → « - ». Chaque cellule totale porte un type (`int`/`dec`/`eur`/`pct`/`evol`/`text`), repris des cellules de ligne.
+- **Exports de la Synthèse Globale** : **Excel** généré côté backend (`consolidation-export.js`, dépendance `xlsx` déjà présente) ; **PDF** côté frontend via la boîte d'impression du navigateur (`export-consolidation-pdf.ts`, paysage A4, en-tête à deux niveaux) — pas de dépendance PDF ajoutée.
+- **Colonnes ER à EY de la Synthèse Globale (saisie libre)** : bilan de la convention d'objectifs et avis de l'instructeur / de l'élu·e. Contrairement au reste du tableau, elles ne sont pas calculées : les valeurs sont saisies dans le tableau (`SectionSyntheseGlobale.tsx`, sauvegarde au `blur`) et stockées dans la table `consolidation_avis` (migration `007`, PK `(dossier_id, colonne)`, cascade sur le dossier). Colonnes valides centralisées dans `CONSOLIDATION_AVIS_COLONNES` (service backend + API frontend).
 - **Sections multiples** : enregistrées par **remplacement complet** (PUT), pour coller au comportement « feuille Excel ».
 - **Accents / encodage** : le seed est idempotent et **ré-écrit les champs des associations existantes** (auto-réparation après un premier seed exécuté avec un fichier corrompu — mojibake type `FÃ©dÃ©ration…`). Ne jamais réécrire les fichiers sources via PowerShell ici-string ; utiliser `node` pour vérifier (`scripts/verify-seed.js`).
 - **Fichiers git** : ne jamais commiter la base (`backend/data/*.sqlite`), les `.env`, les artefacts TypeScript (`*.tsbuildinfo`) ni les documents métier en cours de retravail (`DOCS/`).

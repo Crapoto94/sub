@@ -13,6 +13,7 @@ import type {
   SituationFinanciereSection,
   FinancementRow,
   PieceRow,
+  SyntheseSection,
 } from '../types/subventions';
 import DossierHeader from '../components/dossier/DossierHeader';
 import DossierToc, { DossierTocBar } from '../components/dossier/DossierToc';
@@ -25,6 +26,7 @@ import SectionTarifaire from '../components/dossier/SectionTarifaire';
 import SectionFinanciere from '../components/dossier/SectionFinanciere';
 import SectionFinancements from '../components/dossier/SectionFinancements';
 import SectionPieces from '../components/dossier/SectionPieces';
+import SectionSynthese from '../components/dossier/SectionSynthese';
 
 function errorMessage(err: unknown, fallback: string): string {
   const anyErr = err as { response?: { data?: { error?: string } } };
@@ -90,6 +92,7 @@ export default function DossierAssociation() {
   const fin = sections['situation-financiere'] as SituationFinanciereSection;
   const financements = (sections['autres-subventions'] ?? []) as FinancementRow[];
   const pieces = (sections.pieces ?? []) as PieceRow[];
+  const synthese = sections.synthese as SyntheseSection | undefined;
 
   return (
     <div className="mx-auto w-full max-w-[1800px] px-4 py-6">
@@ -112,6 +115,7 @@ export default function DossierAssociation() {
           <SectionFinanciere fin={fin} />
           <SectionFinancements financements={financements} />
           <SectionPieces pieces={pieces} />
+          <SectionSynthese synthese={synthese} />
         </main>
       </div>
     </div>

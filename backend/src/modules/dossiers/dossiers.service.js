@@ -1,4 +1,6 @@
 const repository = require('./dossiers.repository');
+const associationsRepo = require('../associations/associations.repository');
+const { buildSynthese } = require('./synthese');
 
 // Sections : clé API (camelCase) -> colonne SQL.
 const SECTION_API_MAP = {
@@ -144,6 +146,10 @@ const SECTION_API_MAP = {
 
 const STATUTS = ['brouillon', 'depose', 'instruction', 'decision', 'accorde', 'refuse'];
 
+// Colonnes de la Synthèse Globale à saisie libre (ER → EY) : bilan de la
+// convention d'objectifs et avis de l'instructeur / de l'élu·e.
+const CONSOLIDATION_AVIS_COLONNES = ['ER', 'ES', 'ET', 'EU', 'EV', 'EW', 'EX', 'EY'];
+
 function toApiSection(sectionName, rows) {
   const map = SECTION_API_MAP[sectionName];
   if (repository.SECTIONS[sectionName].single) {
@@ -206,6 +212,13 @@ function get(id) {
   for (const name of Object.keys(repository.SECTIONS)) {
     sections[name] = toApiSection(name, repository.getSection(id, name));
   }
+  // Rubrique 11 : synthèse rédigée automatiquement à partir des rubriques précédentes.
+  const association = associationsRepo.findById(d.association_id);
+  sections.synthese = buildSynthese({
+    association,
+    dossier,
+    sections,
+  });
   return { ...dossier, sections };
 }
 
@@ -333,6 +346,24 @@ function saveSection(id, sectionName, input) {
   return { dossierId: id, section: sectionName, data: toApiSection(sectionName, repository.upsertSection(id, sectionName, sqlData)) };
 }
 
+function saveAvis(id, colonne, valeur) {
+  const col = String(colonne || '').toUpperCase();
+  if (!CONSOLIDATION_AVIS_COLONNES.includes(col)) {
+    const err = new Error(`Colonne invalide (valeurs possibles : ${CONSOLIDATION_AVIS_COLONNES.join(', ')})`);
+    err.status = 400;
+    throw err;
+  }
+  const exists = repository.findById(id);
+  if (!exists) {
+    const err = new Error('Dossier introuvable');
+    err.status = 404;
+    throw err;
+  }
+  const trimmed = valeur === null || valeur === undefined ? null : String(valeur);
+  const saved = repository.upsertAvis(id, col, trimmed);
+  return { dossierId: id, colonne: col, valeur: saved };
+}
+
 function stats({ annee }) {
   const year = annee ? Number(annee) : undefined;
   const raw = repository.statsByYear(year);
@@ -356,4 +387,4 @@ function stats({ annee }) {
   };
 }
 
-module.exports = { list, get, create, patch, remove, restore, purge, saveSection, stats, STATUTS };
+module.exports = { list, get, create, patch, remove, restore, purge, saveSection, saveAvis, stats, STATUTS, CONSOLIDATION_AVIS_COLONNES };

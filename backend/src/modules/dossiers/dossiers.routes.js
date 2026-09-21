@@ -108,6 +108,45 @@ router.get('/corbeille', adminRequired, dossiersController.listCorbeille);
 
 /**
  * @swagger
+ * /api/v1/dossiers/consolidation:
+ *   get:
+ *     summary: Tableau de consolidation (synthèse globale) recalculé à la volée depuis les dossiers
+ *     description: Reproduit la structure du fichier Consolidation.xlsx sans lire ce fichier ; chaque valeur est calculée depuis les dossiers (effectifs, territoire, genre, âges, socio-pro, accessibilité, niveaux sportifs, RH, cotisations, finances, financements, bilan convention, analyse).
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: annee
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Tableau de consolidation (titre, groupes, lignes, totaux) }
+ *       401: { description: Non authentifié }
+ */
+router.get('/consolidation', dossiersController.consolidation);
+
+/**
+ * @swagger
+ * /api/v1/dossiers/consolidation/export:
+ *   get:
+ *     summary: Export Excel (.xlsx) du tableau de consolidation
+ *     description: Reproduit la mise en page de Consolidation.xlsx (titre fusionné, groupes fusionnés, titres de colonnes, ligne TOTAUX), avec les valeurs recalculées depuis les dossiers.
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: annee
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Classeur Excel (application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: {}
+ *       401: { description: Non authentifié }
+ */
+router.get('/consolidation/export', dossiersController.exportExcel);
+
+/**
+ * @swagger
  * /api/v1/dossiers/{id}:
  *   get:
  *     summary: Détail d'un dossier avec toutes ses sections
@@ -257,5 +296,35 @@ router.delete('/:id/purge', adminRequired, dossiersController.purge);
  *       404: { description: Dossier introuvable }
  */
 router.put('/:id/sections/:section', dossiersController.saveSection);
+
+/**
+ * @swagger
+ * /api/v1/dossiers/{id}/avis:
+ *   put:
+ *     summary: Enregistrer une réponse libre de la Synthèse Globale (colonnes ER à EY)
+ *     description: Enregistre le texte saisi dans une des colonnes ER à EY (bilan de la convention d'objectifs, avis de l'instructeur / de l'élu·e). Une valeur vide supprime l'entrée.
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [colonne]
+ *             properties:
+ *               colonne: { type: string, enum: [ER, ES, ET, EU, EV, EW, EX, EY] }
+ *               valeur: { type: string, nullable: true }
+ *     responses:
+ *       200: { description: Réponse enregistrée }
+ *       400: { description: Colonne invalide }
+ *       404: { description: Dossier introuvable }
+ */
+router.put('/:id/avis', dossiersController.saveAvis);
 
 module.exports = router;

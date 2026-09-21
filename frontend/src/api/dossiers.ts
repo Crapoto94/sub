@@ -36,6 +36,42 @@ export interface DossierStats {
   subventions: { sollicitees: number; accordees: number };
 }
 
+// Tableau « Consolidation » — synthèse globale recalculée à la volée depuis
+// les dossiers (même structure que le fichier Consolidation.xlsx).
+export type ConsolidationType = 'int' | 'dec' | 'eur' | 'pct' | 'evol' | 'text';
+
+export interface ConsolidationCell {
+  v: number | string | null;
+  t: ConsolidationType;
+}
+
+export interface ConsolidationColonne {
+  key: string;
+  titre: string;
+}
+
+export interface ConsolidationGroupe {
+  titre: string;
+  colonnes: ConsolidationColonne[];
+}
+
+export interface ConsolidationLigne {
+  id: number | null;
+  reference: string | null;
+  nomAssociation: string | null;
+  statut?: Statut | null;
+  cells: Record<string, ConsolidationCell>;
+}
+
+export interface Consolidation {
+  annee: number | null;
+  titre: string;
+  note: string;
+  groupes: ConsolidationGroupe[];
+  lignes: ConsolidationLigne[];
+  totaux: Record<string, ConsolidationCell | null>;
+}
+
 export const STATUTS: Statut[] = ['brouillon', 'depose', 'instruction', 'decision', 'accorde', 'refuse'];
 
 export async function listDossiers(params: {
@@ -79,6 +115,34 @@ export async function saveSection(id: number, section: string, body: unknown): P
 
 export async function getDossierStats(annee?: number): Promise<DossierStats> {
   const { data } = await api.get<DossierStats>('/api/v1/dossiers/stats', { params: { annee } });
+  return data;
+}
+
+export async function getConsolidation(annee?: number): Promise<Consolidation> {
+  const { data } = await api.get<Consolidation>('/api/v1/dossiers/consolidation', { params: { annee } });
+  return data;
+}
+
+export async function exportConsolidationExcel(annee?: number): Promise<Blob> {
+  const { data } = await api.get<Blob>('/api/v1/dossiers/consolidation/export', {
+    params: { annee },
+    responseType: 'blob',
+  });
+  return data;
+}
+
+// Colonnes de la Synthèse Globale à saisie libre.
+export const CONSOLIDATION_AVIS_COLONNES = ['ER', 'ES', 'ET', 'EU', 'EV', 'EW', 'EX', 'EY'] as const;
+
+export async function saveConsolidationAvis(
+  dossierId: number,
+  colonne: string,
+  valeur: string | null
+): Promise<{ dossierId: number; colonne: string; valeur: string | null }> {
+  const { data } = await api.put<{ dossierId: number; colonne: string; valeur: string | null }>(
+    `/api/v1/dossiers/${dossierId}/avis`,
+    { colonne, valeur }
+  );
   return data;
 }
 

@@ -18,6 +18,7 @@ export const TOC: TocItem[] = [
   { id: 'section-8', label: '8. Situation financière' },
   { id: 'section-9', label: '9. Financements' },
   { id: 'section-10', label: '10. Pièces justificatives' },
+  { id: 'section-11', label: "11. Synthèse de l'association" },
 ];
 
 // Scroll-spy : surbrillance de la section affichée à l'écran.

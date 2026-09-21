@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, BadgeCheck, FileText, Users, Wallet } from 'lucide-react';
-import { getDossierStats, listDossiers } from '../api/dossiers';
-import type { DossierListItem, DossierStats, Statut } from '../api/dossiers';
+import { getConsolidation, getDossierStats, listDossiers } from '../api/dossiers';
+import type { Consolidation, DossierListItem, DossierStats, Statut } from '../api/dossiers';
 import StatutBadge from '../components/dossier/StatutBadge';
+import SectionSyntheseGlobale from '../components/dossier/SectionSyntheseGlobale';
 import { formatEur, formatNumber } from '../components/dossier/format';
 
 const STATUT_COLORS: Record<Statut, string> = {
@@ -24,22 +25,28 @@ export default function SynthesePage() {
   const [stats, setStats] = useState<DossierStats | null>(null);
   const [items, setItems] = useState<DossierListItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [consolidation, setConsolidation] = useState<Consolidation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [consolError, setConsolError] = useState('');
 
   const load = useCallback(async () => {
     setError('');
+    setConsolError('');
     try {
-      const [s, d] = await Promise.all([
+      const [s, d, c] = await Promise.all([
         getDossierStats(annee),
         listDossiers({ annee, limit: 8, offset: 0 }),
+        getConsolidation(annee),
       ]);
       setStats(s);
       setItems(d.items);
       setTotal(d.total);
+      setConsolidation(c);
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { error?: string } } };
       setError(anyErr?.response?.data?.error || 'Impossible de charger la synthèse');
+      setConsolError(anyErr?.response?.data?.error || 'Impossible de charger la synthèse globale');
     } finally {
       setLoading(false);
     }
@@ -92,6 +99,10 @@ export default function SynthesePage() {
             <p className="mt-2 text-3xl font-semibold text-slate-800">{loading ? '…' : k.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6">
+        <SectionSyntheseGlobale consolidation={consolidation} loading={loading} error={consolError} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">

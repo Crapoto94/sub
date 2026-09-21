@@ -299,6 +299,34 @@ const upsertSection = (dossierId, sectionName, data) => {
   return getSection(dossierId, sectionName);
 };
 
+// ---- Synthèse Globale : réponses libres (colonnes ER à EY) ---------------
+
+const getAvisByDossier = (dossierId) => {
+  const rows = query.all('SELECT colonne, valeur FROM consolidation_avis WHERE dossier_id = ?', [dossierId]);
+  const out = {};
+  for (const r of rows) out[r.colonne] = r.valeur;
+  return out;
+};
+
+const listAvisAll = () =>
+  query.all('SELECT dossier_id, colonne, valeur FROM consolidation_avis');
+
+const upsertAvis = (dossierId, colonne, valeur) => {
+  if (valeur === null || valeur === undefined || String(valeur).trim() === '') {
+    query.run('DELETE FROM consolidation_avis WHERE dossier_id = ? AND colonne = ?', [dossierId, colonne]);
+    return null;
+  }
+  const val = String(valeur);
+  query.run(
+    `INSERT INTO consolidation_avis (dossier_id, colonne, valeur, updated_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(dossier_id, colonne)
+     DO UPDATE SET valeur = excluded.valeur, updated_at = datetime('now')`,
+    [dossierId, colonne, val]
+  );
+  return val;
+};
+
 const statsByYear = (annee) => {
   const filter = annee ? 'WHERE deleted_at IS NULL AND annee = ?' : 'WHERE deleted_at IS NULL';
   const params = annee ? [annee] : [];
@@ -336,5 +364,8 @@ module.exports = {
   purgeDossier,
   getSection,
   upsertSection,
+  getAvisByDossier,
+  listAvisAll,
+  upsertAvis,
   statsByYear,
 };
