@@ -26,6 +26,10 @@ const env = {
   apm: {
     url: process.env.APM_API_URL || 'https://api.ivry.local',
     key: process.env.APM_API_KEY || '',
+    // Certificat interne (auto-signé) à faire confiance : chemin d'un PEM.
+    caCert: (process.env.APM_CA_CERT || '').trim(),
+    // Échappatoire DEV uniquement : désactive la vérification TLS. Jamais en production.
+    tlsInsecure: process.env.APM_TLS_INSECURE === 'true',
   },
 
   hubDsi: {

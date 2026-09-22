@@ -18,6 +18,8 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3260}
       - APM_API_URL=${APM_API_URL:-https://api.ivry.local}
       - APM_API_KEY=${APM_API_KEY:-}
+      - APM_CA_CERT=${APM_CA_CERT:-./certs/ivry-local.crt}
+      - APM_TLS_INSECURE=${APM_TLS_INSECURE:-false}
       - HUBDSI_API_URL=${HUBDSI_API_URL:-}
       - HUBDSI_API_KEY=${HUBDSI_API_KEY:-}
     volumes:
