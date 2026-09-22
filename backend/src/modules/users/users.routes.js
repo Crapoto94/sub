@@ -129,4 +129,60 @@ router.patch('/:id', usersController.patch);
  */
 router.post('/:id/password', usersController.setPassword);
 
+/**
+ * @swagger
+ * /api/v1/users/{id}/history:
+ *   get:
+ *     summary: Historique des suppressions / réactivations d'un utilisateur (date, heure, auteur)
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Liste des événements du compte }
+ *       404: { description: Utilisateur introuvable }
+ */
+router.get('/:id/history', usersController.history);
+
+/**
+ * @swagger
+ * /api/v1/users/{id}/reactivate:
+ *   post:
+ *     summary: Réactiver un utilisateur préalablement supprimé
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Utilisateur réactivé }
+ *       400: { description: Compte déjà actif }
+ *       404: { description: Utilisateur introuvable }
+ */
+router.post('/:id/reactivate', usersController.reactivate);
+
+/**
+ * @swagger
+ * /api/v1/users/{id}:
+ *   delete:
+ *     summary: Supprimer un utilisateur (soft delete historisé, réactivable)
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Utilisateur désactivé }
+ *       400: { description: Compte déjà désactivé ou propre compte }
+ *       404: { description: Utilisateur introuvable }
+ */
+router.delete('/:id', usersController.remove);
+
 module.exports = router;

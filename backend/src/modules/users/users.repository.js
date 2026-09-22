@@ -40,4 +40,37 @@ const setPasswordHash = (id, hash) =>
     [hash, id]
   );
 
-module.exports = { listUsers, findUserById, findUserByUsername, createUser, updateUser, setPasswordHash };
+// Active / désactive un compte (soft delete). L'action est historisée.
+const setActive = (id, active) =>
+  query.run(
+    `UPDATE users SET is_active = ?, updated_at = datetime('now') WHERE id = ?`,
+    [active ? 1 : 0, id]
+  );
+
+const recordUserAction = (userId, action, performedById, performedByUsername) =>
+  query.run(
+    `INSERT INTO users_audit (user_id, action, performed_by_id, performed_by_username)
+     VALUES (?, ?, ?, ?)`,
+    [userId, action, performedById, performedByUsername]
+  );
+
+const listUserAudit = (userId) =>
+  query.all(
+    `SELECT id, action, performed_by_id, performed_by_username, created_at
+     FROM users_audit
+     WHERE user_id = ?
+     ORDER BY created_at DESC, id DESC`,
+    [userId]
+  );
+
+module.exports = {
+  listUsers,
+  findUserById,
+  findUserByUsername,
+  createUser,
+  updateUser,
+  setPasswordHash,
+  setActive,
+  recordUserAction,
+  listUserAudit,
+};

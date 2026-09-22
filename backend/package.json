@@ -1,6 +1,6 @@
 {
   "name": "sub-backend",
-  "version": "0.1.0",
+  "version": "0.4.3",
   "description": "API de gestion des demandes de subvention des associations",
   "main": "server.js",
   "scripts": {

@@ -42,4 +42,28 @@ function setPassword(req, res, next) {
   }
 }
 
-module.exports = { list, get, create, patch, setPassword };
+function remove(req, res, next) {
+  try {
+    res.json(usersService.remove(Number(req.params.id), req.user));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function reactivate(req, res, next) {
+  try {
+    res.json(usersService.reactivate(Number(req.params.id), req.user));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function history(req, res, next) {
+  try {
+    res.json(usersService.history(Number(req.params.id)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, get, create, patch, setPassword, remove, reactivate, history };

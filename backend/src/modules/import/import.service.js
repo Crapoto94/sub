@@ -120,8 +120,8 @@ function importFiles({ annee, files }, user) {
     }
   }
 
-  if (!parsed.dossier) {
-    const err = new Error('Le fichier du dossier de demande est obligatoire');
+  if (!parsed.dossier || !parsed.financier) {
+    const err = new Error('Vous devez obligatoirement sélectionner un fichier de dossier de demande et un fichier tableau financier.');
     err.status = 400;
     throw err;
   }

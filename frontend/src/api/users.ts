@@ -37,3 +37,26 @@ export async function resetPassword(id: number, password: string): Promise<User>
   const { data } = await api.post<User>(`/api/v1/users/${id}/password`, { password });
   return data;
 }
+
+export interface UserHistoryEntry {
+  id: number;
+  action: 'suppression' | 'reactivation';
+  performedById: number | null;
+  performedByUsername: string | null;
+  createdAt: string | null;
+}
+
+export async function deleteUser(id: number): Promise<User> {
+  const { data } = await api.delete<User>(`/api/v1/users/${id}`);
+  return data;
+}
+
+export async function reactivateUser(id: number): Promise<User> {
+  const { data } = await api.post<User>(`/api/v1/users/${id}/reactivate`);
+  return data;
+}
+
+export async function getUserHistory(id: number): Promise<UserHistoryEntry[]> {
+  const { data } = await api.get<UserHistoryEntry[]>(`/api/v1/users/${id}/history`);
+  return data;
+}

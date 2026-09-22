@@ -165,10 +165,29 @@ frontend/src/
 
 La version de l'application est affichée **en haut à gauche** (sidebar) avec le bouton **« Quoi de neuf ? »** qui ouvre les notes de version.
 
-- Version courante : **0.1.0** (`frontend/src/lib/appMeta.ts`).
+- Version courante : **0.4.3** (`frontend/src/lib/appMeta.ts`).
+- Convention de versionnage : **0.x.0** pour un nouveau module / grosse fonctionnalité, **0.0.x** pour une version mineure corrective ou légère amélioration — voir `manifest.md`.
 - Chaque évolution majeure doit **incrémenter** `APP_VERSION` et **ajouter une entrée** dans `CHANGELOG` (version, date, liste des nouveautés), tout en mettant à jour ce document.
 
 ### Historique
+
+**0.4.3 — 2026-09-21** : section 8 — scrollbars visibles et colonne « Notes » du tableau financier.
+
+**0.4.2 — 2026-09-21** : section 8 (tableau financier) affiche toutes les lignes du fichier.
+
+**0.4.1 — 2026-09-21** : Synthèse — barre de défilement épaisse, en-têtes en alternance bleu/rose.
+
+**0.4.0 — 2026-09-21** : Synthèse Globale (consolidation des dossiers), section 11 et colonnes ER→EY éditables.
+
+**0.3.0 — 2026-09-02** : Import Excel — création ou mise à jour d'un dossier de subvention (2027).
+
+**0.2.2 — 2026-08-31** : ajout du CDC « Outil d'analyse et restitution 2027 » (documentation).
+
+**0.2.1 — 2026-08-31** : accueil — ajout du logo Ville d'Ivry en haut à gauche.
+
+**0.2.0 — 2026-08-24** : corbeille des dossiers — suppression logique, restauration et purge définitive.
+
+**0.1.1 — 2026-08-24** : ajout des spécifications MarkDown (UI dossier, structure de base) au dépôt.
 
 **0.1.0 — 2026-08-05** : socle technique, authentification, référentiel associations, dossiers de subvention (consultation type classeur Excel, 10 rubriques, historique), graphiques, synthèse, sommaire sticky, version + notes de version.
 

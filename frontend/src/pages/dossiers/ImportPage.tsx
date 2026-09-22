@@ -21,7 +21,7 @@ export default function ImportPage() {
   const [annee, setAnnee] = useState(2027);
   const [slots, setSlots] = useState<FileSlot[]>([
     { key: 'dossier', label: '1. Dossier de demande', required: true, file: null },
-    { key: 'financier', label: '2. Tableau financier', required: false, file: null },
+    { key: 'financier', label: '2. Tableau financier', required: true, file: null },
     { key: 'bilan', label: '3. Bilan convention d\'objectifs', required: false, file: null },
   ]);
   const [submitting, setSubmitting] = useState(false);
@@ -35,8 +35,9 @@ export default function ImportPage() {
 
   async function handleSubmit() {
     const dossierSlot = slots.find((s) => s.key === 'dossier');
-    if (!dossierSlot?.file) {
-      setError('Le fichier « 1. Dossier de demande » est obligatoire.');
+    const financierSlot = slots.find((s) => s.key === 'financier');
+    if (!dossierSlot?.file || !financierSlot?.file) {
+      setError('Vous devez obligatoirement sélectionner un fichier de dossier de demande et un fichier tableau financier.');
       return;
     }
     setError('');
@@ -45,7 +46,7 @@ export default function ImportPage() {
       const res = await importExcel({
         annee,
         dossier: dossierSlot.file,
-        financier: slots.find((s) => s.key === 'financier')?.file ?? undefined,
+        financier: financierSlot.file,
         bilan: slots.find((s) => s.key === 'bilan')?.file ?? undefined,
       });
       setResult(res);

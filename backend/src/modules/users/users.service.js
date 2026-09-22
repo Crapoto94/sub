@@ -100,6 +100,57 @@ function setPassword(id, password, current) {
   return publicUser(repository.findUserById(id));
 }
 
+// Suppression d'un utilisateur (soft delete historisé) : le compte est
+// désactivé (plus de connexion possible) mais peut être réactivé.
+function remove(id, current) {
+  const user = repository.findUserById(id);
+  if (!user) {
+    const err = new Error('Utilisateur introuvable');
+    err.status = 404;
+    throw err;
+  }
+  if (id === Number(current.sub)) {
+    throw badRequest('Vous ne pouvez pas supprimer votre propre compte');
+  }
+  if (!user.is_active) throw badRequest('Ce compte est déjà désactivé');
+
+  repository.setActive(id, false);
+  repository.recordUserAction(id, 'suppression', Number(current.sub), current.username);
+  return publicUser(repository.findUserById(id));
+}
+
+// Réactivation d'un utilisateur préalablement supprimé (historisée).
+function reactivate(id, current) {
+  const user = repository.findUserById(id);
+  if (!user) {
+    const err = new Error('Utilisateur introuvable');
+    err.status = 404;
+    throw err;
+  }
+  if (user.is_active) throw badRequest('Ce compte est déjà actif');
+
+  repository.setActive(id, true);
+  repository.recordUserAction(id, 'reactivation', Number(current.sub), current.username);
+  return publicUser(repository.findUserById(id));
+}
+
+// Historique des suppressions / réactivations d'un compte.
+function history(id) {
+  const user = repository.findUserById(id);
+  if (!user) {
+    const err = new Error('Utilisateur introuvable');
+    err.status = 404;
+    throw err;
+  }
+  return repository.listUserAudit(id).map((row) => ({
+    id: row.id,
+    action: row.action,
+    performedById: row.performed_by_id,
+    performedByUsername: row.performed_by_username,
+    createdAt: row.created_at ? `${row.created_at.replace(' ', 'T')}` : null,
+  }));
+}
+
 function hashPassword(password) {
   if (!password || String(password).length < PASSWORD_MIN) {
     throw badRequest(`Le mot de passe doit contenir au moins ${PASSWORD_MIN} caractères`);
@@ -107,4 +158,4 @@ function hashPassword(password) {
   return bcrypt.hashSync(String(password), 10);
 }
 
-module.exports = { list, get, patch, create, setPassword };
+module.exports = { list, get, patch, create, setPassword, remove, reactivate, history };

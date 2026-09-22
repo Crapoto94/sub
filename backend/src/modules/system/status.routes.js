@@ -31,7 +31,7 @@ router.get('/', (req, res) => {
   res.json({
     status: dbOk ? 'ok' : 'degraded',
     name: 'sub-api',
-    version: '0.1.0',
+    version: '0.4.3',
     timestamp: new Date().toISOString(),
     checks: {
       database: dbOk ? 'ok' : 'error',
