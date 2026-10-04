@@ -4,9 +4,20 @@ export interface ChangelogEntry {
   features: string[];
 }
 
-export const APP_VERSION = '0.4.4';
+export const APP_VERSION = '0.5.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.5.0',
+    date: '2026-10-04',
+    features: [
+      'Nouveau module « Contrôle API Entreprise » : confrontation des données de chaque association (INSEE, DJEPVA/RNA, DataSubvention) à la base locale',
+      'Détection automatique des écarts : SIREN invalide ou mal formé, dates de création divergentes, nom / RNA / adresse non concordants',
+      'Vue champ par champ (base locale vs API), avec statut Conforme / Écart / Local seul / API seul / Hors périmètre API',
+      'Mise en évidence des données fournies par l’API et absentes de la base (SIRET, forme juridique, NAF, effectif, ESS…)',
+      'Consultation des subventions État / opérateurs (rubrique 9) et des points d’attention par association',
+    ],
+  },
   {
     version: '0.4.4',
     date: '2026-09-22',

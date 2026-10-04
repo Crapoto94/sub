@@ -36,6 +36,17 @@ const env = {
     url: process.env.HUBDSI_API_URL || '',
     key: process.env.HUBDSI_API_KEY || '',
   },
+
+  // API Entreprise (données publiques INSEE / DJEPVA / DataSubvention).
+  // Le token JWT est transmis en Authorization: Bearer. Les paramètres
+  // recipient (SIRET de la collectivité), object et context sont obligatoires.
+  apiEntreprise: {
+    url: process.env.API_ENTREPRISE_URL || 'https://entreprise.api.gouv.fr',
+    key: process.env.API_ENTREPRISE_KEY || '',
+    recipient: process.env.API_ENTREPRISE_RECIPIENT || '21940041300015',
+    object: process.env.API_ENTREPRISE_OBJECT || 'Controle des donnees associations',
+    context: process.env.API_ENTREPRISE_CONTEXT || 'Instruction dossier de subvention',
+  },
 };
 
 module.exports = { env };

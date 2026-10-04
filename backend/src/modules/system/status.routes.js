@@ -31,12 +31,13 @@ router.get('/', (req, res) => {
   res.json({
     status: dbOk ? 'ok' : 'degraded',
     name: 'sub-api',
-    version: '0.4.3',
+    version: '0.5.0',
     timestamp: new Date().toISOString(),
     checks: {
       database: dbOk ? 'ok' : 'error',
       apm: { configured: !!env.apm.key, url: env.apm.url },
       hubDsi: { configured: !!env.hubDsi.url },
+      apiEntreprise: { configured: !!env.apiEntreprise.key, url: env.apiEntreprise.url },
     },
   });
 });

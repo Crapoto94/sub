@@ -8,6 +8,7 @@ import DossiersPage from './pages/dossiers/DossiersPage';
 import ImportPage from './pages/dossiers/ImportPage';
 import AssociationsPage from './pages/associations/AssociationsPage';
 import DossierAssociation from './pages/DossierAssociation';
+import ControlesEntreprisePage from './pages/entreprise/ControlesEntreprisePage';
 import UsersPage from './pages/administration/UsersPage';
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/dossiers/:id" element={<DossierAssociation />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/associations" element={<AssociationsPage />} />
+            <Route path="/controles-api-entreprise" element={<ControlesEntreprisePage />} />
             <Route
               path="/administration/utilisateurs"
               element={

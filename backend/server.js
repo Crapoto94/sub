@@ -13,6 +13,7 @@ const usersRoutes = require('./src/modules/users/users.routes');
 const associationsRoutes = require('./src/modules/associations/associations.routes');
 const dossiersRoutes = require('./src/modules/dossiers/dossiers.routes');
 const importRoutes = require('./src/modules/import/import.routes');
+const entrepriseRoutes = require('./src/modules/entreprise/entreprise.routes');
 const statusRoutes = require('./src/modules/system/status.routes');
 
 const app = express();
@@ -28,7 +29,7 @@ const swaggerSpec = swaggerJsdoc({
     openapi: '3.0.0',
     info: {
       title: 'API Subventions',
-      version: '0.4.3',
+      version: '0.5.0',
       description: 'API de gestion des demandes de subvention des associations',
     },
     components: {
@@ -63,6 +64,7 @@ app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/associations', associationsRoutes);
 app.use('/api/v1/dossiers', dossiersRoutes);
 app.use('/api/v1/import', importRoutes);
+app.use('/api/v1/entreprise', entrepriseRoutes);
 app.use('/api/status', statusRoutes);
 
 app.use(notFound);

@@ -22,6 +22,11 @@ services:
       - APM_TLS_INSECURE=${APM_TLS_INSECURE:-false}
       - HUBDSI_API_URL=${HUBDSI_API_URL:-}
       - HUBDSI_API_KEY=${HUBDSI_API_KEY:-}
+      - API_ENTREPRISE_URL=${API_ENTREPRISE_URL:-https://entreprise.api.gouv.fr}
+      - API_ENTREPRISE_KEY=${API_ENTREPRISE_KEY:-}
+      - API_ENTREPRISE_RECIPIENT=${API_ENTREPRISE_RECIPIENT:-21940041300015}
+      - API_ENTREPRISE_OBJECT=${API_ENTREPRISE_OBJECT:-Controle des donnees associations}
+      - API_ENTREPRISE_CONTEXT=${API_ENTREPRISE_CONTEXT:-Instruction dossier de subvention}
     volumes:
       - sub_data:/app/data
 

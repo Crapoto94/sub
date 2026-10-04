@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, ShieldCheck, LogOut, FolderOpen, Users, Sparkles, Upload } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, LogOut, FolderOpen, Users, Sparkles, Upload, Database } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { APP_VERSION } from '../../lib/appMeta';
 import WhatsNewModal from './WhatsNewModal';
@@ -17,6 +17,7 @@ const sections = [
       { to: '/dossiers', label: 'Dossiers', icon: FolderOpen, end: false },
       { to: '/import', label: 'Importer', icon: Upload, end: false },
       { to: '/associations', label: 'Associations', icon: Users, end: false },
+      { to: '/controles-api-entreprise', label: 'Contrôle API Entreprise', icon: Database, end: false },
     ],
   },
   {

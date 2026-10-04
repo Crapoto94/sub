@@ -57,9 +57,10 @@ db/migrations/               # 001 → 008, appliquées dans l'ordre (table sche
 db/seed.js                   # données de démonstration (idempotente)
 services/apm.js              # API centrale APM (authentification AD) — X-API-KEY, timeout 10 s
 services/hubdsi.js           # client API Hub DSI (clé dsk_…) — déclaré mais non utilisé
+services/entreprise.js       # API Entreprise (INSEE, DJEPVA/RNA, DataSubvention) — token JWT Bearer
 middlewares/                 # authRequired, adminRequired, errorHandler
 modules/
-  auth/  users/  associations/  dossiers/  import/  system/
+  auth/  users/  associations/  dossiers/  import/  entreprise/  system/
 ```
 
 Chaque module suit le découpage : `*.repository.js` (SQL brut) → `*.service.js` (métier, mapping camelCase↔snake_case) → `*.controller.js` (HTTP) → `*.routes.js` (routes + Swagger JSDoc).
@@ -100,6 +101,7 @@ Format utilisé : **0.MINOR.PATCH** (stade instable, majeure fixée à 0).
 
 ### Historique des versions (analysé depuis les commits `Crapoto94/sub`)
 
+- **0.5.0 – 2026-10-04** — Module « Contrôle API Entreprise » : comparaison des données associations (INSEE, DJEPVA/RNA, DataSubvention) à la base locale, détection des écarts.
 - **0.4.3 – 2026-09-21** — Section 8 : scrollbars visibles et colonne « Notes » du tableau financier.
 - **0.4.2 – 2026-09-21** — Section 8 : affichage de toutes les lignes du tableau financier.
 - **0.4.1 – 2026-09-21** — Synthèse Globale : barre de défilement épaisse, barre horizontale flottante, en-têtes bleu/rose.
@@ -271,6 +273,7 @@ IDENTITÉ (5) · 2a EFFECTIFS (6) · 2b TERRITOIRE (8) · 2c GENRE (10) · 2d TR
 - **Toutes les URLs, ports, clés et accès sont des paramètres** — jamais de valeur en dur (règle DSI impérative). Centralisées dans `backend/src/config/env.js`, lues depuis `.env` (non committé), documentées dans `.env.example`.
 - Frontend : `VITE_API_URL` injectée **au build**.
 - CORS restreint aux origines connues (`CORS_ORIGINS`, défaut `http://localhost:3260`). `express.json({ limit: '1mb' })`.
+- API Entreprise : `API_ENTREPRISE_URL` / `API_ENTREPRISE_KEY` (jeton JWT) + `API_ENTREPRISE_RECIPIENT` (SIRET de la collectivité, défaut Commune d'Ivry `21940041300015`) / `OBJECT` / `CONTEXT`. Le module reste inactif (contrôle indisponible) si la clé n'est pas fournie.
 
 ### API
 
@@ -278,6 +281,15 @@ IDENTITÉ (5) · 2a EFFECTIFS (6) · 2b TERRITOIRE (8) · 2c GENRE (10) · 2d TR
 - Codes HTTP cohérents : 200/201/400/401/403/404/409/500 ; erreurs normalisées `{ error: message }` (les messages 500 internes sont masqués) ; `notFound` → 404 `{ error: 'Ressource introuvable' }`.
 - Pagination `?limit=&offset=` (bornes : dossiers et associations 1..200, users 1..200).
 - Requêtes SQL **paramétrées** uniquement ; inputs validés ; ne jamais logger de secret.
+
+### Contrôle API Entreprise (v0.5.0)
+
+- Module `entreprise` : `GET /api/v1/entreprise/controles` (synthèse de toutes les associations) et `GET /api/v1/entreprise/associations/:id` (détail champ par champ). Paramètre `?refresh=1` pour ignorer le cache mémoire (TTL 10 min).
+- Sources mobilisées par scope : `unites_legales_etablissements_insee` (identité légale), `associations_djepva` (fiche RNA : nom, sigle, objet, adresse, agréments), `data_subvention_subventions` (subventions État/opérateurs, rubrique 9). Chaque appel porte `recipient`, `object`, `context`.
+- Clé de rapprochement : **SIREN** (normalisé : suppression des non-chiffres, SIRET tronqué à 9) puis **RNA**. Le SIREN est validé par la **clé de Luhn** ; un SIREN invalide ou mal formé est signalé comme point d'attention et l'appel API est évité.
+- Statuts d'un champ : `Conforme`, `Écart`, `Local seul` (donnée présente uniquement en base), `API seul` (donnée fournie par l'API et absente en base), `Hors API` (jamais fourni : contacts, fédération, disciplines, n° d'affiliation, catégorie sportive **et toutes les rubriques 2→11 du dossier**).
+- Comparaison tolérante : normalisation casse/accents/espaces et inclusion réciproque ; dates normalisées (`YYYY-MM-DD`, `JJ/MM/AAAA`, chaînes Excel) ; un 404 DataSubvention (aucune subvention) n'est pas une anomalie.
+- Données API non stockées, exposées en « API seul » : SIRET du siège, forme juridique, NAF, catégorie d'entreprise, tranche d'effectif, ESS, publication au JO, date de dissolution.
 
 ### Sécurité
 
