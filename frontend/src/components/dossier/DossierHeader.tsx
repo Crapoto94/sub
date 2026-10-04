@@ -2,6 +2,7 @@ import { ArrowLeft, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Dossier } from '../../api/dossiers';
 import StatutBadge from './StatutBadge';
+import QualiteBadge from './QualiteBadge';
 import { formatEur } from './format';
 
 // En-tête bleu foncé du dossier : titre, sous-titre, statut et montant demandé.
@@ -27,6 +28,10 @@ export default function DossierHeader({ dossier }: { dossier: Dossier }) {
 
         <div className="flex flex-col items-end gap-3">
           <StatutBadge statut={dossier.statut} />
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-blue-200">Qualité des données</span>
+            <QualiteBadge qualite={dossier.qualite} />
+          </div>
           <div className="text-right">
             <p className="text-xs uppercase tracking-wide text-blue-200">Montant demandé</p>
             <p className="text-3xl font-bold text-white">{formatEur(sollicite?.montantSubventionSollicitee ?? null)}</p>

@@ -4,20 +4,32 @@ export type Statut = 'brouillon' | 'depose' | 'instruction' | 'decision' | 'acco
 
 export type QualiteNiveau = 'bon' | 'a_verifier' | 'critique' | 'non_evalue';
 
+export type QualiteProblemeType =
+  | 'financier'
+  | 'identite_structurante'
+  | 'identite'
+  | 'local_seul';
+
 export interface QualiteProbleme {
-  cle: string;
+  cle?: string;
   libelle: string;
-  type: 'ecart' | 'local_seul';
+  type: QualiteProblemeType;
   local?: string | null;
   api?: string | null;
-  poids: number;
 }
 
 export interface QualiteDonnees {
   score: number | null;
   niveau: QualiteNiveau;
   motif: string;
-  champs: { total: number; ecarts: number; critiques: number; localSeul: number };
+  champs: {
+    total: number;
+    financiers: number;
+    structurants: number;
+    identite: number;
+    localSeul: number;
+  };
+  ecarts: QualiteProbleme[];
   problemes: QualiteProbleme[];
 }
 

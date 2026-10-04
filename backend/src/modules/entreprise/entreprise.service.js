@@ -53,6 +53,44 @@ function defaultCompare(local, apiVal) {
   return a === b || a.includes(b) || b.includes(a);
 }
 
+// Similarité « sac de mots » entre deux libellés : tolère les variantes de
+// casse/accents/ponctuation et les mots manquants ou ajoutés (ex. nom officiel
+// enrichi d'un sigle entre parenthèses). Retourne un ratio 0-1.
+function tokenSimilarity(local, apiVal) {
+  const ta = new Set(norm(local).split(' ').filter((w) => w.length > 2));
+  const tb = new Set(norm(apiVal).split(' ').filter((w) => w.length > 2));
+  if (!ta.size || !tb.size) return 0;
+  let inter = 0;
+  for (const w of ta) if (tb.has(w)) inter += 1;
+  return inter / Math.max(ta.size, tb.size);
+}
+
+// Compare deux noms de façon tolérante : égalité normalisée OU forte proximité
+// de tokens (>= 60 %). Un nom « quasi identique » n'est plus un écart.
+function compareNom(local, apiVal) {
+  if (defaultCompare(local, apiVal)) return true;
+  return tokenSimilarity(local, apiVal) >= 0.6;
+}
+
+// Compare deux adresses de façon tolérante : si le numéro de voie et le code
+// postal sont présents dans les deux, on se contente d'au moins deux tokens
+// communs (rues renommées, compléments différents…).
+function compareAdresse(local, apiVal) {
+  if (defaultCompare(local, apiVal)) return true;
+  return tokenSimilarity(local, apiVal) >= 0.4;
+}
+
+// Compare deux dates avec tolérance (exprimée en jours). Un écart de quelques
+// jours entre la date déclarée et la date INSEE/DJEPVA (date de déclaration vs
+// date de publication) n'est pas une dissimulation.
+function compareDate(local, apiVal, toleranceJours = 31) {
+  const a = parseDateToIso(local);
+  const b = parseDateToIso(apiVal);
+  if (!a || !b) return a === b;
+  const diff = Math.abs(new Date(a).getTime() - new Date(b).getTime());
+  return diff <= toleranceJours * 24 * 3600 * 1000;
+}
+
 function joinAddress(adr) {
   if (!adr) return null;
   const street = [adr.numero_voie, adr.type_voie, adr.libelle_voie].filter(Boolean).join(' ').trim();
@@ -223,11 +261,16 @@ function buildRows(assoc, api) {
       api: isEmpty(apiVal) ? null : String(apiVal),
       source: opts.source || null,
       couverture,
+      // Nature du champ : 'identite' (peu sensible) ou 'financier' (sensible).
+      nature: opts.nature || 'identite',
       statut: computeStatus(local, apiVal, couverture, opts.compare || defaultCompare),
     });
   };
 
-  add('nomOfficielAssociation', 'Nom officiel', assoc.nom_officiel_association, api.nom, { source: 'DJEPVA / INSEE' });
+  add('nomOfficielAssociation', 'Nom officiel', assoc.nom_officiel_association, api.nom, {
+    source: 'DJEPVA / INSEE',
+    compare: compareNom,
+  });
   add('sigleAbreviation', 'Sigle / abréviation', assoc.sigle_abreviation, api.sigle, { source: 'DJEPVA' });
   add('numeroSiren', 'SIREN', assoc.numero_siren, api.numeroSiren, {
     source: 'INSEE',
@@ -240,7 +283,7 @@ function buildRows(assoc, api) {
   add('numeroRna', 'N° RNA', assoc.numero_rna, api.numeroRna, { source: 'INSEE / DJEPVA' });
   add('dateCreation', 'Date de création', parseDateToIso(assoc.date_creation) || assoc.date_creation, api.dateCreation, {
     source: 'DJEPVA / INSEE',
-    compare: (l, r) => parseDateToIso(l) === parseDateToIso(r),
+    compare: (l, r) => compareDate(l, r),
   });
   add(
     'isActive',
@@ -249,7 +292,10 @@ function buildRows(assoc, api) {
     api.active === null ? null : api.active ? 'Oui' : 'Non',
     { source: 'INSEE / DJEPVA' }
   );
-  add('adresseSiegeSocial', 'Adresse du siège', assoc.adresse_siege_social, api.adresse, { source: 'DJEPVA / INSEE' });
+  add('adresseSiegeSocial', 'Adresse du siège', assoc.adresse_siege_social, api.adresse, {
+    source: 'DJEPVA / INSEE',
+    compare: compareAdresse,
+  });
   add('codePostal', 'Code postal', assoc.code_postal, api.codePostal, { source: 'DJEPVA / INSEE' });
   add('ville', 'Ville', assoc.ville, api.ville, { source: 'DJEPVA / INSEE' });
   add('objetAssociation', 'Objet (texte officiel RNA)', assoc.objet_association, api.objet, { source: 'DJEPVA' });
@@ -325,7 +371,7 @@ function buildIssues(assoc, raw, rows) {
   }
   const nomRow = rows.find((r) => r.cle === 'nomOfficielAssociation');
   if (nomRow?.statut === 'ecart') {
-    issues.push(`Nom officiel divergent : base locale « ${nomRow.local} » / API « ${nomRow.api} »`);
+    issues.push(`Nom officiel à confirmer (quasi identique) : base locale « ${nomRow.local} » / API « ${nomRow.api} »`);
   }
   const rnaRow = rows.find((r) => r.cle === 'numeroRna');
   if (rnaRow?.statut === 'ecart') {
@@ -521,6 +567,11 @@ async function getAssociationControle(id, { refresh = false, withSubventions = t
     if (/ne remonte aucune|non contrôlable|non renseignée/i.test(c)) issues.push(c);
   }
 
+  const qualite = computeQualite(rows, raw, issues, {
+    ...rubrique9,
+    subventionsConnues: subventions.length > 0,
+  });
+
   return {
     association: {
       id: assoc.id,
@@ -536,6 +587,7 @@ async function getAssociationControle(id, { refresh = false, withSubventions = t
     etablissements: api.etablissements,
     subventions,
     rubrique9,
+    qualite,
     issues,
     summary: summarize(rows),
   };
@@ -559,69 +611,96 @@ async function mapLimit(items, limit, fn) {
 // Qualité des données au regard de l'API Entreprise
 // ---------------------------------------------------------------------------
 
-// Champs d'identification structurants : pondération plus forte que les autres.
-const CHAMPS_CRITIQUES = new Set(['numeroSiren', 'numeroRna', 'nomOfficielAssociation', 'dateCreation']);
-const CHAMPS_IMPORTANTS = new Set(['adresseSiegeSocial', 'codePostal', 'ville', 'isActive', 'sigleAbreviation']);
+// Identité : seul le SIREN/RNA discordant reste un signal fort (risque de
+// mauvaise association). Les autres champs d'identification sont peu sensibles.
+const CHAMPS_IDENTITE_STRUCTURANTS = new Set(['numeroSiren', 'numeroRna']);
 
-function poids(champ) {
-  if (CHAMPS_CRITIQUES.has(champ)) return 3;
-  if (CHAMPS_IMPORTANTS.has(champ)) return 2;
-  return 1;
-}
+// Un écart financier (montant déclaré non confirmé par DataSubvention) est le
+// signal le plus grave : il peut révéler une dissimulation de financements.
+const POIDS_FINANCIER_ECART = 40;
 
-// Calcule un score de qualité 0-100 et un niveau qualitatif à partir des
-// lignes de comparaison et des erreurs API. Le score ne porte que sur les
-// champs couverts par l'API Entreprise (couverture = 'api').
-function computeQualite(rows, raw, issues) {
+// Calcule un score de qualité 0-100 et un niveau qualitatif. La sévérité porte
+// principalement sur les données FINANCIÈRES (rubrique 9 vs DataSubvention) ;
+// les écarts d'identité non structurants sont des avertissements légers.
+function computeQualite(rows, raw, issues, financier = null) {
   const couverts = rows.filter((r) => r.couverture === 'api');
-  let poidsTotal = 0;
-  let poidsOk = 0;
   const problemes = [];
 
+  // --- Part identité : base 100, décréments légers -------------------------
+  let scoreIdentite = 100;
   for (const r of couverts) {
-    const p = poids(r.cle);
-    poidsTotal += p;
-    if (r.statut === 'ok') {
-      poidsOk += p;
-    } else if (r.statut === 'ecart') {
-      problemes.push({ cle: r.cle, libelle: r.libelle, type: 'ecart', local: r.local, api: r.api, poids: p });
+    if (r.statut === 'ecart') {
+      const structurant = CHAMPS_IDENTITE_STRUCTURANTS.has(r.cle);
+      const type = structurant ? 'identite_structurante' : 'identite';
+      const penalite = structurant ? 15 : 4; // date, nom, adresse… = tolérant
+      scoreIdentite -= penalite;
+      problemes.push({ cle: r.cle, libelle: r.libelle, type, local: r.local, api: r.api });
     } else if (r.statut === 'local_seul') {
-      // Valeur locale non confirmée par l'API (non bloquant, poids 0.5)
-      poidsOk += p * 0.5;
-      problemes.push({ cle: r.cle, libelle: r.libelle, type: 'local_seul', local: r.local, poids: p });
+      problemes.push({ cle: r.cle, libelle: r.libelle, type: 'local_seul', local: r.local });
     }
-    // api_seul : rien à confronter côté local → neutre (n'entre pas dans le score)
+    // api_seul : rien à confronter côté local → neutre
   }
+
+  // --- Part financière : rubrique 9 vs API DataSubvention ------------------
+  const ecartsFinanciers = [];
+  if (financier) {
+    const lignesRattachables = financier.lignes.filter((l) => l.rattachableApi);
+    const apiConnu = financier.subventionsConnues; // au moins une ligne API remontée
+    if (lignesRattachables.length > 0) {
+      const declare = financier.montantDeclareApi2026 || 0;
+      if (declare > 0 && !apiConnu) {
+        ecartsFinanciers.push({
+          libelle: 'Subventions État (rubrique 9)',
+          local: `${fmtEur(declare)} € déclarés (ANS/FDVA, 2026)`,
+          api: 'Aucune subvention État retrouvée',
+          type: 'financier',
+        });
+      } else if (declare > 0 && apiConnu) {
+        const accorde = financier.montantApiAccorde || 0;
+        // Écart seulement si le déclaré dépasse nettement l'accordé API.
+        if (declare > accorde * 1.15 && declare - accorde > 500) {
+          ecartsFinanciers.push({
+            libelle: 'Subventions État (rubrique 9)',
+            local: `${fmtEur(declare)} € déclarés (ANS/FDVA, 2026)`,
+            api: `${fmtEur(accorde)} € accordés (dernier exercice connu)`,
+            type: 'financier',
+          });
+        }
+      }
+    }
+  }
+  problemes.push(...ecartsFinanciers);
 
   const apiDisponible = !!(raw.insee || raw.djepva);
+  const nbFinanciers = ecartsFinanciers.length;
+  const nbStructurants = problemes.filter((p) => p.type === 'identite_structurante').length;
+  const nbIdentite = problemes.filter((p) => p.type === 'identite').length;
+
+  // Le score part de la qualité d'identité et chute fortement sur tout écart
+  // financier (signal de dissimulation potentielle).
   let score;
-  if (!apiDisponible) {
-    score = null;
-  } else if (poidsTotal === 0) {
+  if (!apiDisponible && !financier) {
     score = null;
   } else {
-    score = Math.round((poidsOk / poidsTotal) * 100);
+    score = Math.max(0, Math.round(scoreIdentite - nbFinanciers * POIDS_FINANCIER_ECART));
   }
 
-  const nbEcarts = problemes.filter((p) => p.type === 'ecart').length;
-  const nbCritiques = problemes.filter((p) => p.type === 'ecart' && CHAMPS_CRITIQUES.has(p.cle)).length;
-
-  let niveau; // 'non_evalue' | 'bon' | 'a_verifier' | 'critique'
+  let niveau; // 'bon' | 'a_verifier' | 'critique' | 'non_evalue'
   if (score === null) niveau = 'non_evalue';
-  else if (score >= 90 && nbCritiques === 0) niveau = 'bon';
-  else if (score >= 60 && nbCritiques === 0) niveau = 'a_verifier';
-  else niveau = 'critique';
+  else if (nbFinanciers > 0 || nbStructurants > 0) niveau = 'critique';
+  else if (score >= 90) niveau = 'bon';
+  else niveau = 'a_verifier';
 
-  // Motif principal, priorisé par gravité.
+  // Motif principal, priorisé : financier > identité structurante > légers.
   let motif;
-  if (!apiDisponible) {
+  if (!apiDisponible && score === null) {
     motif = raw.errors?.[0] || 'API Entreprise indisponible pour ce SIREN';
-  } else if (nbCritiques > 0) {
-    motif = `${nbCritiques} écart(s) sur champ(s) structurant(s)`;
-  } else if (nbEcarts > 0) {
-    motif = `${nbEcarts} écart(s) avec l’API Entreprise`;
-  } else if (problemes.length > 0) {
-    motif = `${problemes.length} champ(s) local seul (non confirmé)`;
+  } else if (nbFinanciers > 0) {
+    motif = `${nbFinanciers} écart(s) financier(s) à confirmer`;
+  } else if (nbStructurants > 0) {
+    motif = `${nbStructurants} identifiant(s) (SIREN/RNA) divergent(s)`;
+  } else if (nbIdentite > 0) {
+    motif = `${nbIdentite} écart(s) d’identité mineur(s)`;
   } else {
     motif = 'Données conformes à l’API Entreprise';
   }
@@ -630,25 +709,40 @@ function computeQualite(rows, raw, issues) {
     score,
     niveau,
     motif,
-    champs: { total: couverts.length, ecarts: nbEcarts, critiques: nbCritiques, localSeul: problemes.filter((p) => p.type === 'local_seul').length },
-    problemes: problemes.slice(0, 8),
+    champs: {
+      total: couverts.length,
+      financiers: nbFinanciers,
+      structurants: nbStructurants,
+      identite: nbIdentite,
+      localSeul: problemes.filter((p) => p.type === 'local_seul').length,
+    },
+    ecarts: problemes.filter((p) => p.type !== 'local_seul'),
+    problemes: problemes.slice(0, 12),
   };
 }
 
-// Qualité calculée pour un lot d'associations (sans subventions, cache partagé).
+// Qualité calculée pour un lot d'associations (avec subventions pour la partie
+// financière, cache partagé).
 async function getQualiteParAssociations(associationIds, { refresh = false } = {}) {
   const out = {};
   const ids = [...new Set(associationIds)].filter((x) => Number.isInteger(x));
   await mapLimit(ids, 3, async (id) => {
     const assoc = associationsRepo.findById(id);
     if (!assoc) {
-      out[id] = { score: null, niveau: 'non_evalue', motif: 'Association introuvable' };
+      out[id] = { score: null, niveau: 'non_evalue', motif: 'Association introuvable', ecarts: [] };
       return;
     }
-    const raw = await getRawData(assoc, { withSubventions: false, refresh, retries: 0 });
+    const raw = await getRawData(assoc, { withSubventions: true, refresh, retries: 0 });
     const api = extractApi(raw);
     const rows = buildRows(assoc, api);
-    out[id] = computeQualite(rows, raw, buildIssues(assoc, raw, rows));
+    const subventions = mapSubventions(raw);
+    const dossier = dossiersRepo.findByAssociationAndYear(assoc.id, 2027);
+    const rubrique9 = buildRubrique9(dossier, api, subventions);
+    const financier = {
+      ...rubrique9,
+      subventionsConnues: subventions.length > 0,
+    };
+    out[id] = computeQualite(rows, raw, buildIssues(assoc, raw, rows), financier);
   });
   return out;
 }

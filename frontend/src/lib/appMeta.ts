@@ -4,9 +4,18 @@ export interface ChangelogEntry {
   features: string[];
 }
 
-export const APP_VERSION = '0.5.3';
+export const APP_VERSION = '0.5.4';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.5.4',
+    date: '2026-10-04',
+    features: [
+      'Qualité des données recentrée sur les données FINANCIÈRES (rubrique 9 vs DataSubvention) : un financement déclaré non confirmé par l’API est le signal prioritaire',
+      'Comparaison plus tolérante sur les champs d’identité : nom quasi identique (proximité de mots), date de création à ±1 mois et adresses proches ne sont plus comptés comme écarts',
+      'Infobulle détaillée sur la pastille « Qualité des données » : liste chaque écart (type, valeur déclarée vs valeur API)',
+    ],
+  },
   {
     version: '0.5.3',
     date: '2026-10-04',

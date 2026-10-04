@@ -101,6 +101,7 @@ Format utilisé : **0.MINOR.PATCH** (stade instable, majeure fixée à 0).
 
 ### Historique des versions (analysé depuis les commits `Crapoto94/sub`)
 
+- **0.5.4 – 2026-10-04** — Qualité data recentrée sur le financier ; tolérance identité (nom/date/adresse) ; infobulle des écarts.
 - **0.5.3 – 2026-10-04** — Liste des dossiers : colonne « Qualité des données » au regard de l'API Entreprise (score 0-100, niveau, filtre et recalcul).
 - **0.5.2 – 2026-10-04** — Rubrique 9 : analyse API explicite (requête, périmètre, résultat) et constats nuancés.
 - **0.5.1 – 2026-10-04** — Contrôle API Entreprise : comparaison rubrique 9 vs DataSubvention, champs DJEPVA étendus, établissements.
@@ -288,8 +289,9 @@ IDENTITÉ (5) · 2a EFFECTIFS (6) · 2b TERRITOIRE (8) · 2c GENRE (10) · 2d TR
 ### Qualité des données sur la liste des dossiers (v0.5.3)
 
 - `GET /api/v1/dossiers` enrichit chaque dossier d'un objet `qualite` (paramètre `?qualite=0` pour le désactiver, `?refresh=1` pour forcer le recalcul) ; la corbeille n'est pas qualifiée.
-- Score 0-100 pondéré sur les seuls champs couverts par l'API : poids 3 pour les champs structurants (`SIREN`, `RNA`, `nom officiel`, `date de création`), 2 pour adresse/CP/ville/activité/sigle, 1 pour le reste ; un champ « conforme » compte plein, un champ « local seul » (non confirmé) demi-poids, un « écart » zéro.
-- Niveaux : `bon` (≥ 90 % sans écart critique), `a_verifier` (≥ 60 % sans écart critique), `critique` (sinon), `non_evalue` (API indisponible). Motif priorisé par gravité (écart structurant > écart > local seul > conforme).
+- **Sévérité portée sur le FINANCIER (v0.5.4)** : un financement déclaré (rubrique 9, ANS/FDVA) non confirmé par DataSubvention est le signal prioritaire (pénalité 40 points, niveau `critique`), car il peut révéler une dissimulation.
+- **Identité tolérante** : nom comparé par proximité de mots (≥ 60 %), date de création à ±1 mois, adresses tolérées (≥ 40 % de tokens communs). Seuls `SIREN`/`RNA` divergents restent des signaux forts ; les autres écarts d'identité deviennent des avertissements légers (-4 points).
+- Score = 100 (base identité) − pénalités ; niveaux `bon`/`a_verifier`/`critique`/`non_evalue`. La réponse porte `ecarts` (liste typée : `financier`, `identite_structurante`, `identite`, `local_seul`) exploitable pour une infobulle « déclaré vs API ».
 
 ### Contrôle API Entreprise (v0.5.0)
 
