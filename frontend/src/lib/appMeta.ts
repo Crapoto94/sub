@@ -4,9 +4,17 @@ export interface ChangelogEntry {
   features: string[];
 }
 
-export const APP_VERSION = '0.5.1';
+export const APP_VERSION = '0.5.2';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.5.2',
+    date: '2026-10-04',
+    features: [
+      'Contrôle API Entreprise : affichage explicite de la requête effectuée (endpoint, identifiant, périmètre, résultat) pour la rubrique 9',
+      'Distinction claire entre « aucune donnée API » et « subvention non confirmée » (absence ≠ contradiction), avec détail par dispositif détecté (ANS, FDVA…)',
+    ],
+  },
   {
     version: '0.5.1',
     date: '2026-10-04',

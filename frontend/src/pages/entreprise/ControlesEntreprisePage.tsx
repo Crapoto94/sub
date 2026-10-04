@@ -238,6 +238,38 @@ function Rubrique9Bloc({ rubrique9 }: { rubrique9: import('../../api/entreprise'
         </p>
       </div>
 
+      <div className="border-b border-indigo-100 bg-white/70 px-5 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Requête API Entreprise</p>
+        <dl className="mt-1.5 space-y-1 text-sm">
+          <div className="flex gap-2">
+            <dt className="w-32 shrink-0 text-slate-400">Endpoint</dt>
+            <dd className="font-mono text-[13px] text-slate-700">{rubrique9.requete.endpoint ?? '—'}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-32 shrink-0 text-slate-400">Périmètre</dt>
+            <dd className="text-slate-700">{rubrique9.requete.perimetre}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-32 shrink-0 text-slate-400">Résultat</dt>
+            <dd className="font-medium text-slate-800">{rubrique9.requete.resultat}</dd>
+          </div>
+        </dl>
+      </div>
+
+      {Object.keys(rubrique9.parFinanceur).length > 0 && (
+        <div className="border-b border-indigo-100 px-5 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Dispositifs API détectés</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {Object.entries(rubrique9.parFinanceur).map(([lib, v]) => (
+              <span key={lib} className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs text-indigo-900">
+                <span className="font-semibold">{lib}</span> — {v.nb} ligne(s) · {v.annees.join(', ')}
+                {v.montantAccorde > 0 && <> · {formatEur(v.montantAccorde)} accordés</>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {rubrique9.constats.length > 0 && (
         <ul className="list-disc space-y-1 border-b border-indigo-100 px-8 py-3 text-sm text-indigo-900">
           {rubrique9.constats.map((c) => (

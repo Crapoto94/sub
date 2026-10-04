@@ -52,8 +52,24 @@ export interface Rubrique9Ligne {
   source: string;
 }
 
+export interface Rubrique9Requete {
+  endpoint: string | null;
+  identifiant: string | null;
+  perimetre: string;
+  resultat: string;
+}
+
+export interface Rubrique9FinanceurApi {
+  nb: number;
+  annees: number[];
+  montantAccorde: number;
+  dispositifs: string[];
+}
+
 export interface Rubrique9 {
   lignes: Rubrique9Ligne[];
+  requete: Rubrique9Requete;
+  parFinanceur: Record<string, Rubrique9FinanceurApi>;
   apiAnsFdva: SubventionApi[];
   montantDeclareApi2026: number;
   montantApiAccorde: number;

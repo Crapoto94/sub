@@ -366,9 +366,9 @@ function mapSubventions(raw) {
 // DataSubvention (État / opérateurs). Les autres (Ville, Département, Région,
 // EPT, fédérations, mécénat, sponsoring) sont hors périmètre de l'API.
 const FINANCEURS_API = [
-  { match: /agence nationale du sport|\bans\b/i, dispositifs: /agence nationale du sport|\bans\b|projets? sportifs? f.d.raux|psf/i },
-  { match: /fonds? (pour le )?d.veloppement de la vie associative|\bfdva\b/i, dispositifs: /\bfdva\b|vie associative/i },
-  { match: /service civique/i, dispositifs: /service civique/i },
+  { match: /agence nationale du sport|\bans\b/i, libelle: 'Agence Nationale du Sport (ANS)', dispositifs: /agence nationale du sport|\bans\b|projets? sportifs? f.d.raux|psf/i },
+  { match: /fonds? (pour le )?d.veloppement de la vie associative|\bfdva\b/i, libelle: 'FDVA', dispositifs: /\bfdva\b|vie associative/i },
+  { match: /service civique/i, libelle: 'Service civique', dispositifs: /service civique/i },
 ];
 
 function dispositifOfRow(row) {
@@ -387,6 +387,28 @@ function sum(list, key) {
   return list.reduce((acc, x) => acc + (Number(x[key]) || 0), 0);
 }
 
+function fmtEur(n) {
+  return Number(n || 0).toLocaleString('fr-FR');
+}
+
+// Remonte, pour chaque financeur rattachable déclaré, les dispositifs API
+// correspondants (ANS, FDVA, Service civique) afin de rendre l'analyse explicite.
+function dispositifsParFinanceur(subventions) {
+  const out = {};
+  for (const f of FINANCEURS_API) {
+    const lignes = subventions.filter((s) => f.dispositifs.test(`${s.dispositif || ''} ${s.sousDispositif || ''}`));
+    if (lignes.length) {
+      out[f.libelle] = {
+        nb: lignes.length,
+        annees: [...new Set(lignes.map((s) => Number(s.annee)).filter(Boolean))].sort((a, b) => b - a),
+        montantAccorde: sum(lignes, 'montantAccorde'),
+        dispositifs: [...new Set(lignes.map((s) => s.dispositif).filter(Boolean))],
+      };
+    }
+  }
+  return out;
+}
+
 function buildRubrique9(dossier, api, subventions) {
   const declared = (dossier ? dossiersRepo.getSection(dossier.id, 'autres-subventions') : []) || [];
   const lignes = declared.map((r) => {
@@ -403,35 +425,62 @@ function buildRubrique9(dossier, api, subventions) {
   });
 
   const lignesRattachables = lignes.filter((l) => l.rattachableApi);
+  const nomsFinanceurs = [...new Set(lignesRattachables.map((l) => financeurRattachable(l.financeur)?.libelle).filter(Boolean))];
   const montantDeclareApi = sum(lignesRattachables, 'montant2026');
 
   const apiAnsFdva = subventions.filter((s) => dispositifOfRow(s));
   const montantApiAccorde = sum(apiAnsFdva, 'montantAccorde');
+  const parFinanceur = dispositifsParFinanceur(subventions);
+  const anneesApi = [...new Set(apiAnsFdva.map((s) => Number(s.annee)).filter(Boolean))].sort((a, b) => b - a);
+
+  // Traçabilité explicite de la requête effectuée auprès de l'API.
+  const requete = {
+    endpoint: api?.numeroSiren
+      ? `GET /v3/data_subvention/associations/${api.numeroSiren}/subventions`
+      : null,
+    identifiant: api?.numeroSiren || null,
+    perimetre:
+      'Subventions pourvues/versées par l’État et ses opérateurs (ANS, FDVA, agences…). Hors Ville, Département, Région, EPT, fédérations, mécénat, sponsoring.',
+    resultat:
+      subventions.length > 0
+        ? `${subventions.length} demande(s) de subvention État trouvée(s)`
+        : 'Aucune donnée (association non connue de DataSubvention pour cet identifiant, ou aucune subvention publiée)',
+  };
 
   const constats = [];
   if (!dossier) {
     constats.push('Aucun dossier de subvention 2027 pour cette association : rubrique 9 non renseignée.');
   } else if (lignesRattachables.length === 0) {
     constats.push(
-      'Aucune ligne de la rubrique 9 rattachable à DataSubvention (Ville, Département, Région, EPT, fédérations, mécénat… hors périmètre de l’API).'
+      `Aucune ligne de la rubrique 9 rattachable à DataSubvention (financeurs déclarés hors périmètre : Ville, Département, Région, EPT, fédérations, mécénat, sponsoring).`
     );
   } else {
-    if (apiAnsFdva.length === 0) {
+    const noms = nomsFinanceurs.join(' / ');
+    if (subventions.length === 0) {
       constats.push(
-        `La rubrique 9 déclare ${montantDeclareApi.toLocaleString('fr-FR')} € (ANS / FDVA, exercice 2026) mais l’API DataSubvention ne remonte aucune subvention État pour ce SIREN.`
+        `Financeur(s) déclaré(s) comparable(s) : ${noms}. Montant déclaré 2026 : ${fmtEur(montantDeclareApi)} €. Requête API : « ${requete.endpoint} » → aucune donnée pour ce SIREN.`
+      );
+      constats.push(
+        'Absence ≠ contradiction : la subvention déclarée peut provenir de la Ville (hors API), ne pas être versée ou être antérieure à la couverture DataSubvention. À confirmer pièce à l’appui.'
       );
     } else {
       constats.push(
-        `Rubrique 9 (ANS/FDVA, 2026) : ${montantDeclareApi.toLocaleString('fr-FR')} € déclarés ; API : ${montantApiAccorde.toLocaleString('fr-FR')} € accordés sur les exercices ${[
-          ...new Set(apiAnsFdva.map((s) => s.annee)),
-        ]
-          .filter(Boolean)
-          .join(', ')}.`
+        `Financeur(s) déclaré(s) comparable(s) : ${noms}. Montant déclaré 2026 : ${fmtEur(montantDeclareApi)} € ; API : ${fmtEur(montantApiAccorde)} € accordés au total sur les exercices ${anneesApi.join(', ') || '—'}.`
       );
-      const anneesApi = new Set(apiAnsFdva.map((s) => Number(s.annee)).filter(Boolean));
-      if (!anneesApi.has(2026)) {
+      const detail = Object.entries(parFinanceur)
+        .map(([lib, v]) => `${lib} : ${v.nb} ligne(s) [${v.annees.join(', ')}]${v.montantAccorde ? ` — ${fmtEur(v.montantAccorde)} € accordés` : ''}`)
+        .join(' · ');
+      if (detail) constats.push(`Détail par dispositif API — ${detail}.`);
+
+      const prisEnCompte = nomsFinanceurs.every((n) => parFinanceur[n]);
+      if (!prisEnCompte) {
         constats.push(
-          'L’API ne couvre pas l’exercice 2026 : les montants 2026 déclarés ne sont pas encore contrôlables (les dernières données disponibles portent sur des exercices antérieurs).'
+          `Certains financeurs déclarés (${noms}) n’apparaissent dans aucune ligne API retournée : à confirmer (subvention non versée, non encore publiée, ou hors du périmètre couvert).`
+        );
+      }
+      if (!anneesApi.includes(2026)) {
+        constats.push(
+          `L’API ne remonte aucune donnée pour l’exercice 2026 (dernières données : ${anneesApi.join(', ') || '—'}) : les montants 2026 déclarés ne sont pas contrôlables à ce jour.`
         );
       }
     }
@@ -439,6 +488,8 @@ function buildRubrique9(dossier, api, subventions) {
 
   return {
     lignes,
+    requete,
+    parFinanceur,
     apiAnsFdva,
     montantDeclareApi2026: montantDeclareApi,
     montantApiAccorde,
