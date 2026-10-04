@@ -166,11 +166,13 @@ frontend/src/
 
 La version de l'application est affichée **en haut à gauche** (sidebar) avec le bouton **« Quoi de neuf ? »** qui ouvre les notes de version.
 
-- Version courante : **0.5.0** (`frontend/src/lib/appMeta.ts`).
+- Version courante : **0.5.1** (`frontend/src/lib/appMeta.ts`).
 - Convention de versionnage : **0.x.0** pour un nouveau module / grosse fonctionnalité, **0.0.x** pour une version mineure corrective ou légère amélioration — voir `manifest.md`.
 - Chaque évolution majeure doit **incrémenter** `APP_VERSION` et **ajouter une entrée** dans `CHANGELOG` (version, date, liste des nouveautés), tout en mettant à jour ce document.
 
 ### Historique
+
+**0.5.1 — 2026-10-04** : comparaison de la rubrique 9 (dossier) aux subventions DataSubvention ; nouveaux champs DJEPVA (régime, RUP, CEC, objet social, réseaux) ; liste des établissements.
 
 **0.5.0 — 2026-10-04** : module « Contrôle API Entreprise » — confrontation des données associations (INSEE, DJEPVA/RNA, DataSubvention) à la base locale : écarts, champs hors périmètre API, données API seules (SIRET, forme juridique, NAF, effectif, ESS…), subventions État et points d'attention.
 

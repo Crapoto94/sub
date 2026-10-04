@@ -34,6 +34,32 @@ export interface SubventionApi {
   statut: string | null;
 }
 
+export interface EtablissementApi {
+  siret: string | null;
+  nom: string | null;
+  siege: boolean;
+  actif: boolean;
+  adresse: string | null;
+}
+
+export interface Rubrique9Ligne {
+  financeur: string | null;
+  montant2025: number | null;
+  montant2026: number | null;
+  montant2027: number | null;
+  objet: string | null;
+  rattachableApi: boolean;
+  source: string;
+}
+
+export interface Rubrique9 {
+  lignes: Rubrique9Ligne[];
+  apiAnsFdva: SubventionApi[];
+  montantDeclareApi2026: number;
+  montantApiAccorde: number;
+  constats: string[];
+}
+
 export interface ControleSummary {
   total: number;
   ok: number;
@@ -67,7 +93,9 @@ export interface ControleDetail {
   apiErreurs: string[];
   rows: LigneComparaison[];
   apiSeul: DonneeApiSeule[];
+  etablissements: EtablissementApi[];
   subventions: SubventionApi[];
+  rubrique9: Rubrique9;
   issues: string[];
   summary: ControleSummary;
 }

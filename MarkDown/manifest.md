@@ -101,6 +101,7 @@ Format utilisé : **0.MINOR.PATCH** (stade instable, majeure fixée à 0).
 
 ### Historique des versions (analysé depuis les commits `Crapoto94/sub`)
 
+- **0.5.1 – 2026-10-04** — Contrôle API Entreprise : comparaison rubrique 9 vs DataSubvention, champs DJEPVA étendus, établissements.
 - **0.5.0 – 2026-10-04** — Module « Contrôle API Entreprise » : comparaison des données associations (INSEE, DJEPVA/RNA, DataSubvention) à la base locale, détection des écarts.
 - **0.4.3 – 2026-09-21** — Section 8 : scrollbars visibles et colonne « Notes » du tableau financier.
 - **0.4.2 – 2026-09-21** — Section 8 : affichage de toutes les lignes du tableau financier.
@@ -289,7 +290,8 @@ IDENTITÉ (5) · 2a EFFECTIFS (6) · 2b TERRITOIRE (8) · 2c GENRE (10) · 2d TR
 - Clé de rapprochement : **SIREN** (normalisé : suppression des non-chiffres, SIRET tronqué à 9) puis **RNA**. Le SIREN est validé par la **clé de Luhn** ; un SIREN invalide ou mal formé est signalé comme point d'attention et l'appel API est évité.
 - Statuts d'un champ : `Conforme`, `Écart`, `Local seul` (donnée présente uniquement en base), `API seul` (donnée fournie par l'API et absente en base), `Hors API` (jamais fourni : contacts, fédération, disciplines, n° d'affiliation, catégorie sportive **et toutes les rubriques 2→11 du dossier**).
 - Comparaison tolérante : normalisation casse/accents/espaces et inclusion réciproque ; dates normalisées (`YYYY-MM-DD`, `JJ/MM/AAAA`, chaînes Excel) ; un 404 DataSubvention (aucune subvention) n'est pas une anomalie.
-- Données API non stockées, exposées en « API seul » : SIRET du siège, forme juridique, NAF, catégorie d'entreprise, tranche d'effectif, ESS, publication au JO, date de dissolution.
+- Données API non stockées, exposées en « API seul » : SIRET du siège, forme juridique, NAF, catégorie d'entreprise, tranche d'effectif, ESS, publication au JO, date de dissolution, régime, groupement, utilité publique, publication RUP, éligibilité CEC, impôts commerciaux, objet social (code RNA), champ d'action territorial, réseaux/affiliations, adresse de gestion, établissements (SIRET, adresse, siège/secondaire, actif/fermé).
+- **Rubrique 9 vs DataSubvention (v0.5.1)** : les lignes de `dossier_autres_subventions` sont rattachées à un dispositif API par catégorie de financeur (ANS, FDVA, Service civique) ; comparaison des montants 2026 déclarés aux montants accordés de l'API ; constats émis si un montant déclaré n'est pas confirmé, si l'API ne remonte rien pour le SIREN, ou si l'exercice n'est pas encore couvert. Ville, Département, Région, EPT, fédérations, mécénat, sponsoring sont hors périmètre API.
 
 ### Sécurité
 

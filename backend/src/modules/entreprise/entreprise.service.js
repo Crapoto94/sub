@@ -1,5 +1,6 @@
 const entrepriseClient = require('../../services/entreprise');
 const associationsRepo = require('../associations/associations.repository');
+const dossiersRepo = require('../dossiers/dossiers.repository');
 const { env } = require('../../config/env');
 
 // Cache mémoire des réponses API Entreprise (évite de re-solliciter l'API à
@@ -171,6 +172,27 @@ function extractApi(raw) {
     agrements: agrements.map((a) => [a.type, a.numero].filter(Boolean).join(' ')).filter(Boolean),
     telephone: contact.telephone || null,
     email: contact.courriel || null,
+    adresseGestion: joinAddress(dj.adresse_gestion) || null,
+    regime: dj.regime || null,
+    groupement: dj.groupement || null,
+    reconnueUtilitePublique: typeof dj.reconnue_utilite_publique === 'boolean' ? dj.reconnue_utilite_publique : null,
+    eligibiliteCec: typeof dj.eligibilite_cec === 'boolean' ? dj.eligibilite_cec : null,
+    impotsCommerciaux: typeof dj.impots_commerciaux === 'boolean' ? dj.impots_commerciaux : null,
+    objetSocial: dj.activites?.objet_social1
+      ? [dj.activites.objet_social1.code, dj.activites.objet_social1.libelle].filter(Boolean).join(' ')
+      : null,
+    champActionTerritorial: dj.activites?.champ_action_territorial || null,
+    datePublicationUtilitePublique: dj.date_publication_reconnue_utilite_publique || null,
+    reseaux: Array.isArray(dj.reseaux_affiliation)
+      ? dj.reseaux_affiliation.map((r) => r?.nom_complet_composition_du_reseau || r?.nom || r).filter(Boolean).join(' ; ')
+      : null,
+    etablissements: etabs.map((e) => ({
+      siret: e.siret || null,
+      nom: e.nom || null,
+      siege: !!e.siege,
+      actif: e.actif !== false,
+      adresse: joinAddress(e.adresse),
+    })),
   };
 }
 
@@ -265,6 +287,28 @@ function buildApiOnly(api) {
     },
     { libelle: 'Publication au Journal officiel', valeur: api.datePublicationJo, source: 'DJEPVA' },
     { libelle: 'Date de dissolution', valeur: api.dateDissolution, source: 'DJEPVA' },
+    { libelle: 'Régime', valeur: api.regime, source: 'DJEPVA' },
+    { libelle: 'Groupement', valeur: api.groupement, source: 'DJEPVA' },
+    {
+      libelle: 'Reconnue d’utilité publique',
+      valeur: api.reconnueUtilitePublique === null ? null : api.reconnueUtilitePublique ? 'Oui' : 'Non',
+      source: 'DJEPVA',
+    },
+    { libelle: 'Publication RUP', valeur: api.datePublicationUtilitePublique, source: 'DJEPVA' },
+    {
+      libelle: 'Éligible au compte d’engagement citoyen',
+      valeur: api.eligibiliteCec === null ? null : api.eligibiliteCec ? 'Oui' : 'Non',
+      source: 'DJEPVA',
+    },
+    {
+      libelle: 'Impôts commerciaux',
+      valeur: api.impotsCommerciaux === null ? null : api.impotsCommerciaux ? 'Oui' : 'Non',
+      source: 'DJEPVA',
+    },
+    { libelle: 'Objet social (code RNA)', valeur: api.objetSocial, source: 'DJEPVA' },
+    { libelle: 'Champ d’action territorial', valeur: api.champActionTerritorial, source: 'DJEPVA' },
+    { libelle: 'Réseaux / affiliations déclarés', valeur: api.reseaux, source: 'DJEPVA' },
+    { libelle: 'Adresse de gestion', valeur: api.adresseGestion, source: 'DJEPVA' },
   ];
   return items.filter((i) => i.valeur !== null && i.valeur !== undefined && String(i.valeur).trim() !== '');
 }
@@ -315,6 +359,94 @@ function mapSubventions(raw) {
 }
 
 // ---------------------------------------------------------------------------
+// Rubrique 9 « autres subventions » : comparaison avec DataSubvention
+// ---------------------------------------------------------------------------
+
+// Catégories de financeurs de la rubrique 9 rattachables à un dispositif
+// DataSubvention (État / opérateurs). Les autres (Ville, Département, Région,
+// EPT, fédérations, mécénat, sponsoring) sont hors périmètre de l'API.
+const FINANCEURS_API = [
+  { match: /agence nationale du sport|\bans\b/i, dispositifs: /agence nationale du sport|\bans\b|projets? sportifs? f.d.raux|psf/i },
+  { match: /fonds? (pour le )?d.veloppement de la vie associative|\bfdva\b/i, dispositifs: /\bfdva\b|vie associative/i },
+  { match: /service civique/i, dispositifs: /service civique/i },
+];
+
+function dispositifOfRow(row) {
+  const label = `${row.dispositif || ''} ${row.sousDispositif || ''}`;
+  for (const f of FINANCEURS_API) {
+    if (f.dispositifs.test(label)) return f;
+  }
+  return null;
+}
+
+function financeurRattachable(financeur) {
+  return FINANCEURS_API.find((f) => f.match.test(financeur || '')) || null;
+}
+
+function sum(list, key) {
+  return list.reduce((acc, x) => acc + (Number(x[key]) || 0), 0);
+}
+
+function buildRubrique9(dossier, api, subventions) {
+  const declared = (dossier ? dossiersRepo.getSection(dossier.id, 'autres-subventions') : []) || [];
+  const lignes = declared.map((r) => {
+    const rattachable = financeurRattachable(r.financeur);
+    return {
+      financeur: r.financeur || null,
+      montant2025: r.montant_accorde_2025 ?? null,
+      montant2026: r.montant_accorde_2026 ?? null,
+      montant2027: r.montant_sollicite_2027 ?? null,
+      objet: r.objet_financement || null,
+      rattachableApi: !!rattachable,
+      source: rattachable ? 'DataSubvention' : 'Hors API Entreprise',
+    };
+  });
+
+  const lignesRattachables = lignes.filter((l) => l.rattachableApi);
+  const montantDeclareApi = sum(lignesRattachables, 'montant2026');
+
+  const apiAnsFdva = subventions.filter((s) => dispositifOfRow(s));
+  const montantApiAccorde = sum(apiAnsFdva, 'montantAccorde');
+
+  const constats = [];
+  if (!dossier) {
+    constats.push('Aucun dossier de subvention 2027 pour cette association : rubrique 9 non renseignée.');
+  } else if (lignesRattachables.length === 0) {
+    constats.push(
+      'Aucune ligne de la rubrique 9 rattachable à DataSubvention (Ville, Département, Région, EPT, fédérations, mécénat… hors périmètre de l’API).'
+    );
+  } else {
+    if (apiAnsFdva.length === 0) {
+      constats.push(
+        `La rubrique 9 déclare ${montantDeclareApi.toLocaleString('fr-FR')} € (ANS / FDVA, exercice 2026) mais l’API DataSubvention ne remonte aucune subvention État pour ce SIREN.`
+      );
+    } else {
+      constats.push(
+        `Rubrique 9 (ANS/FDVA, 2026) : ${montantDeclareApi.toLocaleString('fr-FR')} € déclarés ; API : ${montantApiAccorde.toLocaleString('fr-FR')} € accordés sur les exercices ${[
+          ...new Set(apiAnsFdva.map((s) => s.annee)),
+        ]
+          .filter(Boolean)
+          .join(', ')}.`
+      );
+      const anneesApi = new Set(apiAnsFdva.map((s) => Number(s.annee)).filter(Boolean));
+      if (!anneesApi.has(2026)) {
+        constats.push(
+          'L’API ne couvre pas l’exercice 2026 : les montants 2026 déclarés ne sont pas encore contrôlables (les dernières données disponibles portent sur des exercices antérieurs).'
+        );
+      }
+    }
+  }
+
+  return {
+    lignes,
+    apiAnsFdva,
+    montantDeclareApi2026: montantDeclareApi,
+    montantApiAccorde,
+    constats,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // API publique du service
 // ---------------------------------------------------------------------------
 
@@ -328,6 +460,16 @@ async function getAssociationControle(id, { refresh = false, withSubventions = t
   const raw = await getRawData(assoc, { withSubventions, refresh });
   const api = extractApi(raw);
   const rows = buildRows(assoc, api);
+  const subventions = mapSubventions(raw);
+
+  const dossier = dossiersRepo.findByAssociationAndYear(assoc.id, 2027);
+  const rubrique9 = buildRubrique9(dossier, api, subventions);
+
+  const issues = buildIssues(assoc, raw, rows);
+  for (const c of rubrique9.constats) {
+    if (/ne remonte aucune|non contrôlable|non renseignée/i.test(c)) issues.push(c);
+  }
+
   return {
     association: {
       id: assoc.id,
@@ -340,8 +482,10 @@ async function getAssociationControle(id, { refresh = false, withSubventions = t
     apiErreurs: raw.errors,
     rows,
     apiSeul: buildApiOnly(api),
-    subventions: mapSubventions(raw),
-    issues: buildIssues(assoc, raw, rows),
+    etablissements: api.etablissements,
+    subventions,
+    rubrique9,
+    issues,
     summary: summarize(rows),
   };
 }

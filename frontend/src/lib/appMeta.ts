@@ -4,9 +4,19 @@ export interface ChangelogEntry {
   features: string[];
 }
 
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.5.1';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.5.1',
+    date: '2026-10-04',
+    features: [
+      'Contrôle API Entreprise : comparaison de la rubrique 9 « autres subventions » (dossier) avec les subventions État / opérateurs (DataSubvention), ligne par ligne',
+      'Marquage des financeurs rattachables à l’API (ANS, FDVA, Service civique) et alerte quand un montant déclaré n’est pas confirmé par l’API',
+      'Nouveaux champs exploités : régime, groupement, utilité publique, éligibilité CEC, impôts commerciaux, objet social (code RNA), champ d’action territorial, réseaux/affiliations, adresse de gestion',
+      'Liste des établissements (DJEPVA/INSEE) : SIRET, adresse, rôle (siège/secondaire), état (actif/fermé)',
+    ],
+  },
   {
     version: '0.5.0',
     date: '2026-10-04',

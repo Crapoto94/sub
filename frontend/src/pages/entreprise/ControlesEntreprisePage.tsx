@@ -185,45 +185,140 @@ function Detail({ detail, loading }: { detail: ControleDetail | null; loading: b
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-5 py-3">
-          <h3 className="text-sm font-semibold text-slate-700">Subventions État / opérateurs (DataSubvention)</h3>
-          <p className="text-xs text-slate-400">
-            Alimentation possible de la rubrique 9 « autres subventions » (hors Ville, Département, Région, fédérations).
-          </p>
-        </div>
-        {detail.subventions.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-slate-400">Aucune subvention État référencée pour cette association.</p>
-        ) : (
+      <Rubrique9Bloc rubrique9={detail.rubrique9} />
+
+      {detail.etablissements.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-5 py-3">
+            <h3 className="text-sm font-semibold text-slate-700">
+              Établissements (DJEPVA / INSEE) — {detail.etablissements.length}
+            </h3>
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
               <tr>
-                <th className="px-3 py-2">Année</th>
-                <th className="px-3 py-2">Dispositif</th>
-                <th className="px-3 py-2">Instructeur</th>
-                <th className="px-3 py-2">Statut</th>
-                <th className="px-3 py-2 text-right">Demandé</th>
-                <th className="px-3 py-2 text-right">Accordé</th>
+                <th className="px-3 py-2">SIRET</th>
+                <th className="px-3 py-2">Adresse</th>
+                <th className="px-3 py-2">Rôle</th>
+                <th className="px-3 py-2">État</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {detail.subventions.map((s, i) => (
-                <tr key={`${s.dispositif}-${s.annee}-${i}`}>
-                  <td className="px-3 py-2 text-slate-700">{s.annee ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-700">
-                    {s.dispositif ?? '—'}
-                    {s.sousDispositif && <p className="text-[11px] text-slate-400">{s.sousDispositif}</p>}
+              {detail.etablissements.map((e, i) => (
+                <tr key={`${e.siret}-${i}`}>
+                  <td className="px-3 py-2 font-mono text-[13px] text-slate-700">{e.siret ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-700">{e.adresse ?? '—'}</td>
+                  <td className="px-3 py-2 text-slate-700">{e.siege ? 'Siège' : 'Secondaire'}</td>
+                  <td className="px-3 py-2">
+                    <span className={`rounded-full border px-2 py-0.5 text-[11px] ${e.actif ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                      {e.actif ? 'Actif' : 'Fermé'}
+                    </span>
                   </td>
-                  <td className="px-3 py-2 text-slate-700">{s.instructeur ?? '—'}</td>
-                  <td className="px-3 py-2 text-slate-700">{s.statut ?? '—'}</td>
-                  <td className="px-3 py-2 text-right text-slate-700">{formatEur(s.montantDemande)}</td>
-                  <td className="px-3 py-2 text-right text-slate-700">{formatEur(s.montantAccorde)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Rubrique9Bloc({ rubrique9 }: { rubrique9: import('../../api/entreprise').Rubrique9 }) {
+  const rattachables = rubrique9.lignes.filter((l) => l.rattachableApi);
+  return (
+    <div className="overflow-hidden rounded-xl border border-indigo-200 bg-indigo-50/40">
+      <div className="border-b border-indigo-100 px-5 py-3">
+        <h3 className="text-sm font-semibold text-indigo-900">
+          Rubrique 9 « autres subventions » vs DataSubvention
+        </h3>
+        <p className="text-xs text-indigo-900/60">
+          Seules les lignes rattachables à un dispositif État (ANS, FDVA, Service civique) sont comparables à l’API ;
+          Ville, Département, Région, EPT, fédérations, mécénat et sponsoring en sont hors périmètre.
+        </p>
       </div>
+
+      {rubrique9.constats.length > 0 && (
+        <ul className="list-disc space-y-1 border-b border-indigo-100 px-8 py-3 text-sm text-indigo-900">
+          {rubrique9.constats.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
+      )}
+
+      {rubrique9.lignes.length > 0 && (
+        <table className="w-full text-sm">
+          <thead className="bg-indigo-100/60 text-left text-xs uppercase tracking-wider text-indigo-700">
+            <tr>
+              <th className="px-3 py-2">Financeur déclaré</th>
+              <th className="px-3 py-2">Objet</th>
+              <th className="px-3 py-2 text-right">2025</th>
+              <th className="px-3 py-2 text-right">2026</th>
+              <th className="px-3 py-2 text-right">2027 (sollicité)</th>
+              <th className="px-3 py-2">Comparable API</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-indigo-100">
+            {rubrique9.lignes.map((l, i) => (
+              <tr key={`${l.financeur}-${i}`} className={l.rattachableApi ? 'bg-white' : ''}>
+                <td className="px-3 py-2 font-medium text-slate-700">{l.financeur ?? '—'}</td>
+                <td className="px-3 py-2 text-slate-600">{l.objet ?? '—'}</td>
+                <td className="px-3 py-2 text-right text-slate-700">{formatEur(l.montant2025)}</td>
+                <td className="px-3 py-2 text-right text-slate-700">{formatEur(l.montant2026)}</td>
+                <td className="px-3 py-2 text-right text-slate-700">{formatEur(l.montant2027)}</td>
+                <td className="px-3 py-2">
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                      l.rattachableApi
+                        ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    {l.rattachableApi ? 'Oui (ANS/FDVA)' : 'Non'}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {rattachables.length > 0 && (
+        <div className="border-t border-indigo-100 bg-white px-5 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Détail API DataSubvention</p>
+          {rubrique9.apiAnsFdva.length === 0 ? (
+            <p className="mt-1 text-sm text-slate-400">Aucune subvention État référencée pour ce SIREN.</p>
+          ) : (
+            <table className="mt-2 w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th className="py-1.5 pr-3">Année</th>
+                  <th className="py-1.5 pr-3">Dispositif</th>
+                  <th className="py-1.5 pr-3">Instructeur</th>
+                  <th className="py-1.5 pr-3">Statut</th>
+                  <th className="py-1.5 pr-3 text-right">Demandé</th>
+                  <th className="py-1.5 text-right">Accordé</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rubrique9.apiAnsFdva.map((s, i) => (
+                  <tr key={`${s.dispositif}-${s.annee}-${i}`}>
+                    <td className="py-1.5 pr-3 text-slate-700">{s.annee ?? '—'}</td>
+                    <td className="py-1.5 pr-3 text-slate-700">
+                      {s.dispositif ?? '—'}
+                      {s.sousDispositif && <p className="text-[11px] text-slate-400">{s.sousDispositif}</p>}
+                    </td>
+                    <td className="py-1.5 pr-3 text-slate-700">{s.instructeur ?? '—'}</td>
+                    <td className="py-1.5 pr-3 text-slate-700">{s.statut ?? '—'}</td>
+                    <td className="py-1.5 pr-3 text-right text-slate-700">{formatEur(s.montantDemande)}</td>
+                    <td className="py-1.5 text-right text-slate-700">{formatEur(s.montantAccorde)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 }
