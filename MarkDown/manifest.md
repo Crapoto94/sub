@@ -101,6 +101,8 @@ Format utilisé : **0.MINOR.PATCH** (stade instable, majeure fixée à 0).
 
 ### Historique des versions (analysé depuis les commits `Crapoto94/sub`)
 
+- **0.5.3 – 2026-10-04** — Liste des dossiers : colonne « Qualité des données » au regard de l'API Entreprise (score 0-100, niveau, filtre et recalcul).
+- **0.5.2 – 2026-10-04** — Rubrique 9 : analyse API explicite (requête, périmètre, résultat) et constats nuancés.
 - **0.5.1 – 2026-10-04** — Contrôle API Entreprise : comparaison rubrique 9 vs DataSubvention, champs DJEPVA étendus, établissements.
 - **0.5.0 – 2026-10-04** — Module « Contrôle API Entreprise » : comparaison des données associations (INSEE, DJEPVA/RNA, DataSubvention) à la base locale, détection des écarts.
 - **0.4.3 – 2026-09-21** — Section 8 : scrollbars visibles et colonne « Notes » du tableau financier.
@@ -282,6 +284,12 @@ IDENTITÉ (5) · 2a EFFECTIFS (6) · 2b TERRITOIRE (8) · 2c GENRE (10) · 2d TR
 - Codes HTTP cohérents : 200/201/400/401/403/404/409/500 ; erreurs normalisées `{ error: message }` (les messages 500 internes sont masqués) ; `notFound` → 404 `{ error: 'Ressource introuvable' }`.
 - Pagination `?limit=&offset=` (bornes : dossiers et associations 1..200, users 1..200).
 - Requêtes SQL **paramétrées** uniquement ; inputs validés ; ne jamais logger de secret.
+
+### Qualité des données sur la liste des dossiers (v0.5.3)
+
+- `GET /api/v1/dossiers` enrichit chaque dossier d'un objet `qualite` (paramètre `?qualite=0` pour le désactiver, `?refresh=1` pour forcer le recalcul) ; la corbeille n'est pas qualifiée.
+- Score 0-100 pondéré sur les seuls champs couverts par l'API : poids 3 pour les champs structurants (`SIREN`, `RNA`, `nom officiel`, `date de création`), 2 pour adresse/CP/ville/activité/sigle, 1 pour le reste ; un champ « conforme » compte plein, un champ « local seul » (non confirmé) demi-poids, un « écart » zéro.
+- Niveaux : `bon` (≥ 90 % sans écart critique), `a_verifier` (≥ 60 % sans écart critique), `critique` (sinon), `non_evalue` (API indisponible). Motif priorisé par gravité (écart structurant > écart > local seul > conforme).
 
 ### Contrôle API Entreprise (v0.5.0)
 

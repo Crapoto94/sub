@@ -2,6 +2,25 @@ import { api } from './client';
 
 export type Statut = 'brouillon' | 'depose' | 'instruction' | 'decision' | 'accorde' | 'refuse';
 
+export type QualiteNiveau = 'bon' | 'a_verifier' | 'critique' | 'non_evalue';
+
+export interface QualiteProbleme {
+  cle: string;
+  libelle: string;
+  type: 'ecart' | 'local_seul';
+  local?: string | null;
+  api?: string | null;
+  poids: number;
+}
+
+export interface QualiteDonnees {
+  score: number | null;
+  niveau: QualiteNiveau;
+  motif: string;
+  champs: { total: number; ecarts: number; critiques: number; localSeul: number };
+  problemes: QualiteProbleme[];
+}
+
 export interface DossierListItem {
   id: number;
   reference: string;
@@ -17,6 +36,7 @@ export interface DossierListItem {
   updatedAt: string;
   deletedAt?: string | null;
   deletedBy?: number | null;
+  qualite?: QualiteDonnees | null;
 }
 
 export interface Dossier extends DossierListItem {
@@ -80,6 +100,8 @@ export async function listDossiers(params: {
   q?: string;
   limit?: number;
   offset?: number;
+  refresh?: boolean;
+  qualite?: boolean;
 }): Promise<DossierList> {
   const { data } = await api.get<DossierList>('/api/v1/dossiers', { params });
   return data;

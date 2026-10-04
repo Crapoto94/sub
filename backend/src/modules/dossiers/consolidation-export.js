@@ -24,8 +24,8 @@ function numberFormat(type) {
   return NUMBER_FORMATS[type] || null;
 }
 
-function buildWorkbook({ annee }) {
-  const c = buildConsolidation({ annee });
+async function buildWorkbook({ annee }) {
+  const c = await buildConsolidation({ annee });
   const keys = c.groupes.flatMap((g) => g.colonnes.map((col) => col.key));
   const totalCols = keys.length;
 
@@ -80,9 +80,9 @@ function buildWorkbook({ annee }) {
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 
-function buildxlsxExport({ annee }) {
+async function buildxlsxExport({ annee }) {
   const filename = annee ? `Consolidation_${annee}.xlsx` : 'Consolidation.xlsx';
-  return { filename, buffer: buildWorkbook({ annee }) };
+  return { filename, buffer: await buildWorkbook({ annee }) };
 }
 
 module.exports = { buildxlsxExport };

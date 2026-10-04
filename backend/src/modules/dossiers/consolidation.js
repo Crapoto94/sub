@@ -329,8 +329,8 @@ function buildRow(full) {
 
 // ---- API ----------------------------------------------------------------
 
-function buildConsolidation({ annee }) {
-  const { items } = service.list({ annee: annee || undefined, limit: 100000, offset: 0 });
+async function buildConsolidation({ annee }) {
+  const { items } = await service.list({ annee: annee || undefined, limit: 100000, offset: 0 });
   const dossiers = items.filter((d) => d.statut !== 'brouillon');
 
   // Réponses libres (colonnes ER → EY) : chargées une seule fois pour tous les dossiers.
@@ -344,8 +344,9 @@ function buildConsolidation({ annee }) {
     map[a.colonne] = a.valeur;
   }
 
-  const rows = dossiers.map((d) => {
-    const full = service.get(d.id);
+  const fulls = await Promise.all(dossiers.map((d) => service.get(d.id, { avecQualite: false })));
+  const rows = dossiers.map((d, i) => {
+    const full = fulls[i];
     const dossier = {
       id: full.id,
       reference: full.reference,

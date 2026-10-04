@@ -555,6 +555,104 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
+// ---------------------------------------------------------------------------
+// Qualité des données au regard de l'API Entreprise
+// ---------------------------------------------------------------------------
+
+// Champs d'identification structurants : pondération plus forte que les autres.
+const CHAMPS_CRITIQUES = new Set(['numeroSiren', 'numeroRna', 'nomOfficielAssociation', 'dateCreation']);
+const CHAMPS_IMPORTANTS = new Set(['adresseSiegeSocial', 'codePostal', 'ville', 'isActive', 'sigleAbreviation']);
+
+function poids(champ) {
+  if (CHAMPS_CRITIQUES.has(champ)) return 3;
+  if (CHAMPS_IMPORTANTS.has(champ)) return 2;
+  return 1;
+}
+
+// Calcule un score de qualité 0-100 et un niveau qualitatif à partir des
+// lignes de comparaison et des erreurs API. Le score ne porte que sur les
+// champs couverts par l'API Entreprise (couverture = 'api').
+function computeQualite(rows, raw, issues) {
+  const couverts = rows.filter((r) => r.couverture === 'api');
+  let poidsTotal = 0;
+  let poidsOk = 0;
+  const problemes = [];
+
+  for (const r of couverts) {
+    const p = poids(r.cle);
+    poidsTotal += p;
+    if (r.statut === 'ok') {
+      poidsOk += p;
+    } else if (r.statut === 'ecart') {
+      problemes.push({ cle: r.cle, libelle: r.libelle, type: 'ecart', local: r.local, api: r.api, poids: p });
+    } else if (r.statut === 'local_seul') {
+      // Valeur locale non confirmée par l'API (non bloquant, poids 0.5)
+      poidsOk += p * 0.5;
+      problemes.push({ cle: r.cle, libelle: r.libelle, type: 'local_seul', local: r.local, poids: p });
+    }
+    // api_seul : rien à confronter côté local → neutre (n'entre pas dans le score)
+  }
+
+  const apiDisponible = !!(raw.insee || raw.djepva);
+  let score;
+  if (!apiDisponible) {
+    score = null;
+  } else if (poidsTotal === 0) {
+    score = null;
+  } else {
+    score = Math.round((poidsOk / poidsTotal) * 100);
+  }
+
+  const nbEcarts = problemes.filter((p) => p.type === 'ecart').length;
+  const nbCritiques = problemes.filter((p) => p.type === 'ecart' && CHAMPS_CRITIQUES.has(p.cle)).length;
+
+  let niveau; // 'non_evalue' | 'bon' | 'a_verifier' | 'critique'
+  if (score === null) niveau = 'non_evalue';
+  else if (score >= 90 && nbCritiques === 0) niveau = 'bon';
+  else if (score >= 60 && nbCritiques === 0) niveau = 'a_verifier';
+  else niveau = 'critique';
+
+  // Motif principal, priorisé par gravité.
+  let motif;
+  if (!apiDisponible) {
+    motif = raw.errors?.[0] || 'API Entreprise indisponible pour ce SIREN';
+  } else if (nbCritiques > 0) {
+    motif = `${nbCritiques} écart(s) sur champ(s) structurant(s)`;
+  } else if (nbEcarts > 0) {
+    motif = `${nbEcarts} écart(s) avec l’API Entreprise`;
+  } else if (problemes.length > 0) {
+    motif = `${problemes.length} champ(s) local seul (non confirmé)`;
+  } else {
+    motif = 'Données conformes à l’API Entreprise';
+  }
+
+  return {
+    score,
+    niveau,
+    motif,
+    champs: { total: couverts.length, ecarts: nbEcarts, critiques: nbCritiques, localSeul: problemes.filter((p) => p.type === 'local_seul').length },
+    problemes: problemes.slice(0, 8),
+  };
+}
+
+// Qualité calculée pour un lot d'associations (sans subventions, cache partagé).
+async function getQualiteParAssociations(associationIds, { refresh = false } = {}) {
+  const out = {};
+  const ids = [...new Set(associationIds)].filter((x) => Number.isInteger(x));
+  await mapLimit(ids, 3, async (id) => {
+    const assoc = associationsRepo.findById(id);
+    if (!assoc) {
+      out[id] = { score: null, niveau: 'non_evalue', motif: 'Association introuvable' };
+      return;
+    }
+    const raw = await getRawData(assoc, { withSubventions: false, refresh, retries: 0 });
+    const api = extractApi(raw);
+    const rows = buildRows(assoc, api);
+    out[id] = computeQualite(rows, raw, buildIssues(assoc, raw, rows));
+  });
+  return out;
+}
+
 async function listControles({ refresh = false } = {}) {
   const { items } = associationsRepo.listAssociations({ limit: 200, offset: 0 });
   const controles = await mapLimit(items, 3, async (assoc) => {
@@ -575,4 +673,4 @@ async function listControles({ refresh = false } = {}) {
   return { items: controles };
 }
 
-module.exports = { getAssociationControle, listControles };
+module.exports = { getAssociationControle, listControles, getQualiteParAssociations, computeQualite };

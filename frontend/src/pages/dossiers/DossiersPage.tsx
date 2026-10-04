@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { FolderOpen, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { deleteDossier, listCorbeille, listDossiers, purgeDossier, restoreDossier, STATUTS } from '../../api/dossiers';
-import type { DossierListItem, Statut } from '../../api/dossiers';
+import type { DossierListItem, QualiteNiveau, Statut } from '../../api/dossiers';
 import StatutBadge from '../../components/dossier/StatutBadge';
+import QualiteBadge from '../../components/dossier/QualiteBadge';
 import { useAuth } from '../../context/AuthContext';
+
+const QUALITE_LABELS: Record<QualiteNiveau, string> = {
+  bon: 'Conformes',
+  a_verifier: 'À vérifier',
+  critique: 'Écarts critiques',
+  non_evalue: 'Non évalué',
+};
 
 const STATUT_LABELS: Record<Statut, string> = {
   brouillon: 'Brouillon',
@@ -30,27 +38,34 @@ export default function DossiersPage() {
   const [error, setError] = useState('');
   const [annee, setAnnee] = useState<number | undefined>(2027);
   const [statut, setStatut] = useState<Statut | ''>('');
+  const [qualiteFiltre, setQualiteFiltre] = useState<QualiteNiveau | ''>('');
   const [q, setQ] = useState('');
   const [corbeille, setCorbeille] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     setError('');
+    if (refresh) setRefreshing(true);
     try {
       const data = corbeille
         ? await listCorbeille({ q: q || undefined, limit: 100, offset: 0 })
-        : await listDossiers({ annee, statut: statut || undefined, q: q || undefined, limit: 100, offset: 0 });
+        : await listDossiers({ annee, statut: statut || undefined, q: q || undefined, limit: 100, offset: 0, refresh });
       setItems(data.items);
       setTotal(data.total);
     } catch (err: unknown) {
       setError(getApiError(err) || 'Impossible de charger les dossiers');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [annee, statut, q, corbeille]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Filtrage côté client sur la qualité des données.
+  const displayed = qualiteFiltre ? items.filter((d) => d.qualite?.niveau === qualiteFiltre) : items;
 
   async function handleDelete(d: DossierListItem) {
     if (!window.confirm(`Mettre le dossier ${d.reference} à la corbeille ? Il pourra être restauré.`)) return;
@@ -126,6 +141,21 @@ export default function DossiersPage() {
             </option>
           ))}
         </select>
+        {!corbeille && (
+          <select
+            value={qualiteFiltre}
+            onChange={(e) => setQualiteFiltre(e.target.value as QualiteNiveau | '')}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            title="Qualité des données au regard de l'API Entreprise"
+          >
+            <option value="">Toutes qualités de données</option>
+            {(Object.keys(QUALITE_LABELS) as QualiteNiveau[]).map((n) => (
+              <option key={n} value={n}>
+                {QUALITE_LABELS[n]}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           onClick={() => navigate('/associations')}
@@ -134,20 +164,34 @@ export default function DossiersPage() {
           <Plus size={16} />
           Gérer les associations
         </button>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setCorbeille((v) => !v)}
-            className={`ml-auto inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium ${
-              corbeille
-                ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
-                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <Trash2 size={16} />
-            {corbeille ? 'Retour aux dossiers' : 'Corbeille'}
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {!corbeille && (
+            <button
+              type="button"
+              onClick={() => load(true)}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+              title="Recalculer la qualité des données depuis l'API Entreprise"
+            >
+              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+              Actualiser la qualité
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setCorbeille((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium ${
+                corbeille
+                  ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Trash2 size={16} />
+              {corbeille ? 'Retour aux dossiers' : 'Corbeille'}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
@@ -160,6 +204,11 @@ export default function DossiersPage() {
               <th className="px-4 py-3">Association</th>
               <th className="px-4 py-3">Année</th>
               <th className="px-4 py-3">Statut</th>
+              {!corbeille && (
+                <th className="px-4 py-3" title="Qualité des données au regard de l'API Entreprise (INSEE, DJEPVA, DataSubvention)">
+                  Qualité des données
+                </th>
+              )}
               <th className="px-4 py-3">{corbeille ? 'Supprimé le' : 'Dernière mise à jour'}</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
@@ -167,13 +216,13 @@ export default function DossiersPage() {
           <tbody className="divide-y divide-slate-100">
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={corbeille ? 6 : 7} className="px-4 py-6 text-center text-slate-400">
                   Chargement…
                 </td>
               </tr>
             )}
             {!loading &&
-              items.map((d) => (
+              displayed.map((d) => (
                 <tr key={d.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-[13px] text-slate-600">{d.reference}</td>
                   <td className="px-4 py-3">
@@ -184,6 +233,11 @@ export default function DossiersPage() {
                   <td className="px-4 py-3">
                     <StatutBadge statut={d.statut} />
                   </td>
+                  {!corbeille && (
+                    <td className="px-4 py-3">
+                      <QualiteBadge qualite={d.qualite} />
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-slate-600">
                     {new Date(corbeille ? d.deletedAt ?? d.updatedAt : d.updatedAt).toLocaleDateString('fr-FR')}
                   </td>
@@ -234,11 +288,13 @@ export default function DossiersPage() {
                   </td>
                 </tr>
               ))}
-            {!loading && !items.length && (
+            {!loading && !displayed.length && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                <td colSpan={corbeille ? 6 : 7} className="px-4 py-10 text-center text-slate-400">
                   {corbeille ? (
                     'La corbeille est vide.'
+                  ) : items.length ? (
+                    'Aucun dossier ne correspond au filtre de qualité sélectionné.'
                   ) : (
                     <>
                       Aucun dossier trouvé. Lancez d’abord le seed : <code>npm run seed</code> (backend).

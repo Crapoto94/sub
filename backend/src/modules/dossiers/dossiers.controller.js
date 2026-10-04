@@ -2,25 +2,28 @@ const dossiersService = require('./dossiers.service');
 const { buildConsolidation } = require('./consolidation');
 const { buildxlsxExport } = require('./consolidation-export');
 
-function list(req, res, next) {
+async function list(req, res, next) {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
-    res.json(dossiersService.list({
+    const refresh = ['1', 'true', 'oui'].includes(String(req.query.refresh ?? '').toLowerCase());
+    res.json(await dossiersService.list({
       annee: req.query.annee ? Number(req.query.annee) : undefined,
       statut: req.query.statut,
       q: req.query.q,
       limit,
       offset,
+      avecQualite: req.query.qualite !== '0',
+      refresh,
     }));
   } catch (err) {
     next(err);
   }
 }
 
-function get(req, res, next) {
+async function get(req, res, next) {
   try {
-    res.json(dossiersService.get(Number(req.params.id)));
+    res.json(await dossiersService.get(Number(req.params.id)));
   } catch (err) {
     next(err);
   }
@@ -67,17 +70,17 @@ function stats(req, res, next) {
   }
 }
 
-function consolidation(req, res, next) {
+async function consolidation(req, res, next) {
   try {
-    res.json(buildConsolidation({ annee: req.query.annee ? Number(req.query.annee) : undefined }));
+    res.json(await buildConsolidation({ annee: req.query.annee ? Number(req.query.annee) : undefined }));
   } catch (err) {
     next(err);
   }
 }
 
-function exportExcel(req, res, next) {
+async function exportExcel(req, res, next) {
   try {
-    const { filename, buffer } = buildxlsxExport({ annee: req.query.annee ? Number(req.query.annee) : undefined });
+    const { filename, buffer } = await buildxlsxExport({ annee: req.query.annee ? Number(req.query.annee) : undefined });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
@@ -86,11 +89,11 @@ function exportExcel(req, res, next) {
   }
 }
 
-function listCorbeille(req, res, next) {
+async function listCorbeille(req, res, next) {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
-    res.json(dossiersService.list({
+    res.json(await dossiersService.list({
       annee: req.query.annee ? Number(req.query.annee) : undefined,
       q: req.query.q,
       deleted: true,

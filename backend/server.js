@@ -29,7 +29,7 @@ const swaggerSpec = swaggerJsdoc({
     openapi: '3.0.0',
     info: {
       title: 'API Subventions',
-      version: '0.5.2',
+      version: '0.5.3',
       description: 'API de gestion des demandes de subvention des associations',
     },
     components: {

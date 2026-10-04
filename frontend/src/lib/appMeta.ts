@@ -4,9 +4,19 @@ export interface ChangelogEntry {
   features: string[];
 }
 
-export const APP_VERSION = '0.5.2';
+export const APP_VERSION = '0.5.3';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.5.3',
+    date: '2026-10-04',
+    features: [
+      'Liste des dossiers : colonne « Qualité des données » au regard de l’API Entreprise (score 0-100 et niveau Conformes / À vérifier / Écarts critiques / Non évalué)',
+      'Qualification pondérée : les champs structurants (SIREN, RNA, nom officiel, date de création) pèsent plus lourd dans le score',
+      'Filtre par niveau de qualité et bouton « Actualiser la qualité » (recalcul depuis l’API Entreprise)',
+      'La qualité est aussi exposée sur le détail d’un dossier',
+    ],
+  },
   {
     version: '0.5.2',
     date: '2026-10-04',

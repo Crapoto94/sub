@@ -1,6 +1,7 @@
 const repository = require('./dossiers.repository');
 const associationsRepo = require('../associations/associations.repository');
 const { buildSynthese } = require('./synthese');
+const { getQualiteParAssociations } = require('../entreprise/entreprise.service');
 
 // Sections : clé API (camelCase) -> colonne SQL.
 const SECTION_API_MAP = {
@@ -208,12 +209,24 @@ function publicDossier(d) {
   };
 }
 
-function list({ annee, statut, q, deleted, limit, offset }) {
+async function list({ annee, statut, q, deleted, limit, offset, avecQualite = false, refresh = false }) {
   const result = repository.listDossiers({ annee, statut, q, deleted: Boolean(deleted), limit, offset });
-  return { total: result.total, items: result.items.map(publicDossier) };
+  const items = result.items.map(publicDossier);
+
+  // Qualification de la qualité des données au regard de l'API Entreprise
+  // (uniquement pour les dossiers actifs, pas la corbeille).
+  if (avecQualite && !deleted && items.length) {
+    const qualites = await getQualiteParAssociations(
+      items.map((d) => d.associationId),
+      { refresh }
+    );
+    for (const d of items) d.qualite = qualites[d.associationId] || null;
+  }
+
+  return { total: result.total, items };
 }
 
-function get(id) {
+async function get(id, { avecQualite = true } = {}) {
   const d = repository.findById(id);
   if (!d) {
     const err = new Error('Dossier introuvable');
@@ -232,6 +245,11 @@ function get(id) {
     dossier,
     sections,
   });
+  // Qualification de la qualité des données au regard de l'API Entreprise.
+  if (avecQualite) {
+    const qualites = await getQualiteParAssociations([d.association_id]);
+    dossier.qualite = qualites[d.association_id] || null;
+  }
   return { ...dossier, sections };
 }
 
