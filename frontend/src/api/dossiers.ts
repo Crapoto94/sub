@@ -205,3 +205,11 @@ export async function purgeDossier(id: number): Promise<{ id: number; reference:
   );
   return data;
 }
+
+// Récupère le PDF d'une pièce justificative (généré côté serveur).
+export async function getPieceFichier(dossierId: number, pieceId: number): Promise<Blob> {
+  const { data } = await api.get<Blob>(`/api/v1/dossiers/${dossierId}/pieces/${pieceId}/fichier`, {
+    responseType: 'blob',
+  });
+  return data;
+}

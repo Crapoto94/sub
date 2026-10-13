@@ -1,12 +1,42 @@
-import { CheckCircle2, Eye, FileText, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, Printer, X, XCircle } from 'lucide-react';
 import { useState } from 'react';
+import { getPieceFichier } from '../../api/dossiers';
 import type { PieceRow } from '../../types/subventions';
 import DossierSection from './DossierSection';
 import { formatDate } from './format';
 
-// 10. PIÈCES JUSTIFICATIVES : liste de documents avec icône vert/rouge et prévisualisation.
-export default function SectionPieces({ pieces }: { pieces: PieceRow[] }) {
-  const [preview, setPreview] = useState<PieceRow | null>(null);
+// 10. PIÈCES JUSTIFICATIVES : liste de documents avec icône vert/rouge.
+// Le bouton « Voir » affiche le PDF de la pièce (généré côté serveur) dans
+// un panneau de prévisualisation : consultation + impression.
+export default function SectionPieces({ pieces, dossierId }: { pieces: PieceRow[]; dossierId: number }) {
+  const [previewPiece, setPreviewPiece] = useState<PieceRow | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState('');
+
+  async function onVoir(piece: PieceRow) {
+    setPdfError('');
+    setPdfUrl(null);
+    setPreviewPiece(piece);
+    try {
+      const blob = await getPieceFichier(dossierId, piece.id);
+      const url = URL.createObjectURL(blob);
+      setPdfUrl((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return url;
+      });
+    } catch {
+      setPdfError('Impossible de charger le PDF de cette pièce.');
+    }
+  }
+
+  function fermerPreview() {
+    setPreviewPiece(null);
+    setPdfUrl((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return null;
+    });
+    setPdfError('');
+  }
 
   return (
     <DossierSection numero={10} titre="Pièces justificatives" id="section-10">
@@ -41,9 +71,8 @@ export default function SectionPieces({ pieces }: { pieces: PieceRow[] }) {
                 <td className="px-3 py-2.5 text-right">
                   <button
                     type="button"
-                    disabled={!p.fichier}
-                    onClick={() => setPreview(p)}
-                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-[12px] font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={() => onVoir(p)}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
                   >
                     <Eye size={13} />
                     Voir
@@ -60,20 +89,55 @@ export default function SectionPieces({ pieces }: { pieces: PieceRow[] }) {
         </table>
       </div>
 
-      {preview && (
-        <div className="mt-4 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-          <FileText size={20} className="mt-0.5 shrink-0 text-[#173F73]" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-slate-800">{preview.typePiece}</p>
-            <p className="break-all text-[12px] text-slate-500">{preview.fichier}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setPreview(null)}
-            className="rounded-md border border-slate-300 px-2 py-1 text-[12px] font-medium text-slate-600 hover:bg-slate-100"
+      {previewPiece && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          onClick={fermerPreview}
+        >
+          <div
+            className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
           >
-            Fermer
-          </button>
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-sm font-semibold text-slate-800">
+                  {previewPiece.typePiece ?? 'Pièce justificative'}
+                </h3>
+                <p className="truncate text-xs text-slate-500">{previewPiece.fichier ?? '—'}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {pdfUrl && (
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
+                  >
+                    <Printer size={14} />
+                    Imprimer
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={fermerPreview}
+                  className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Fermer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-slate-100">
+              {pdfError && <p className="p-4 text-sm text-red-600">{pdfError}</p>}
+              {pdfUrl && (
+                <iframe
+                  title={`Aperçu de ${previewPiece.typePiece ?? 'la pièce'}`}
+                  src={pdfUrl}
+                  className="h-full w-full"
+                />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </DossierSection>

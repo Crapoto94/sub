@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
-import { deleteDossier, listCorbeille, listDossiers, purgeDossier, restoreDossier, STATUTS } from '../../api/dossiers';
+import { FileDown, FolderOpen, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  deleteDossier,
+  getDossier,
+  listCorbeille,
+  listDossiers,
+  purgeDossier,
+  restoreDossier,
+  STATUTS,
+} from '../../api/dossiers';
 import type { DossierListItem, QualiteNiveau, Statut } from '../../api/dossiers';
+import { getAssociation } from '../../api/associations';
 import StatutBadge from '../../components/dossier/StatutBadge';
 import QualiteBadge from '../../components/dossier/QualiteBadge';
+import { exportDossierPdf } from '../../components/dossier/export-dossier-pdf';
 import { useAuth } from '../../context/AuthContext';
 
 const QUALITE_LABELS: Record<QualiteNiveau, string> = {
@@ -42,6 +52,7 @@ export default function DossiersPage() {
   const [q, setQ] = useState('');
   const [corbeille, setCorbeille] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [exportingId, setExportingId] = useState<number | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     setError('');
@@ -93,6 +104,26 @@ export default function DossiersPage() {
       await load();
     } catch (err: unknown) {
       setError(getApiError(err));
+    }
+  }
+
+  // Exporte le dossier au format PDF, sous la même forme que consultée à l'écran.
+  async function handleExport(d: DossierListItem) {
+    setError('');
+    setExportingId(d.id);
+    try {
+      const dossier = await getDossier(d.id);
+      let association = null;
+      try {
+        association = await getAssociation(dossier.associationId);
+      } catch {
+        association = null;
+      }
+      exportDossierPdf(dossier, association);
+    } catch (err: unknown) {
+      setError(getApiError(err) || "L'export du dossier a échoué");
+    } finally {
+      setExportingId(null);
     }
   }
 
@@ -244,14 +275,25 @@ export default function DossiersPage() {
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       {!corbeille && (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/dossiers/${d.id}`)}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                        >
-                          <FolderOpen size={14} />
-                          Consulter
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/dossiers/${d.id}`)}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                          >
+                            <FolderOpen size={14} />
+                            Consulter
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExport(d)}
+                            disabled={exportingId === d.id}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <FileDown size={14} />
+                            {exportingId === d.id ? 'Export…' : 'Exporter'}
+                          </button>
+                        </>
                       )}
                       {corbeille ? (
                         <>

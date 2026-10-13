@@ -267,6 +267,32 @@ router.delete('/:id/purge', adminRequired, dossiersController.purge);
 
 /**
  * @swagger
+ * /api/v1/dossiers/{id}/pieces/{pieceId}/fichier:
+ *   get:
+ *     summary: PDF d'une pièce justificative (généré à la volée, consultable et imprimable)
+ *     tags: [Dossiers]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: path
+ *         name: pieceId
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Document PDF (application/pdf, affiché en ligne)
+ *         content:
+ *           application/pdf: {}
+ *       401: { description: Non authentifié }
+ *       404: { description: Dossier ou pièce introuvable }
+ */
+router.get('/:id/pieces/:pieceId/fichier', dossiersController.getPieceFichier);
+
+/**
+ * @swagger
  * /api/v1/dossiers/{id}/sections/{section}:
  *   put:
  *     summary: Enregistrer une section du dossier (remplacement complet)

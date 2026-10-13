@@ -1,12 +1,20 @@
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, FileDown, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Dossier } from '../../api/dossiers';
+import type { Association } from '../../api/associations';
 import StatutBadge from './StatutBadge';
 import QualiteBadge from './QualiteBadge';
 import { formatEur } from './format';
+import { exportDossierPdf } from './export-dossier-pdf';
 
 // En-tête bleu foncé du dossier : titre, sous-titre, statut et montant demandé.
-export default function DossierHeader({ dossier }: { dossier: Dossier }) {
+export default function DossierHeader({
+  dossier,
+  association,
+}: {
+  dossier: Dossier;
+  association?: Association | null;
+}) {
   const navigate = useNavigate();
   const sollicite = dossier.sections['situation-financiere'] as { montantSubventionSollicitee?: number | null } | undefined;
 
@@ -56,6 +64,15 @@ export default function DossierHeader({ dossier }: { dossier: Dossier }) {
         >
           <Pencil size={16} />
           Modifier le dossier
+        </button>
+        <button
+          type="button"
+          onClick={() => exportDossierPdf(dossier, association)}
+          title="Export PDF du dossier (mise en forme identique à l'écran)"
+          className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-sm font-medium hover:bg-white/20"
+        >
+          <FileDown size={16} />
+          Exporter
         </button>
       </div>
     </div>

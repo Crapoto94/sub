@@ -121,6 +121,21 @@ function restore(req, res, next) {
   }
 }
 
+function getPieceFichier(req, res, next) {
+  try {
+    const { filename, buffer } = dossiersService.getPieceFichier(
+      Number(req.params.id),
+      Number(req.params.pieceId)
+    );
+    // « inline » : le navigateur affiche le PDF (prévisualisation + impression).
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 function purge(req, res, next) {
   try {
     res.json(dossiersService.purge(Number(req.params.id)));
@@ -129,4 +144,4 @@ function purge(req, res, next) {
   }
 }
 
-module.exports = { list, listCorbeille, get, create, patch, remove, restore, purge, saveSection, saveAvis, stats, consolidation, exportExcel };
+module.exports = { list, listCorbeille, get, create, patch, remove, restore, purge, saveSection, saveAvis, stats, consolidation, exportExcel, getPieceFichier };

@@ -2,6 +2,7 @@ const repository = require('./dossiers.repository');
 const associationsRepo = require('../associations/associations.repository');
 const { buildSynthese } = require('./synthese');
 const { getQualiteParAssociations } = require('../entreprise/entreprise.service');
+const { buildPiecePdf } = require('./piecePdf');
 
 // Sections : clé API (camelCase) -> colonne SQL.
 const SECTION_API_MAP = {
@@ -395,6 +396,27 @@ function saveAvis(id, colonne, valeur) {
   return { dossierId: id, colonne: col, valeur: saved };
 }
 
+// Génère (à la volée) le PDF d'une pièce justificative, consultable et imprimable.
+function getPieceFichier(dossierId, pieceId) {
+  const dossier = repository.findById(dossierId);
+  if (!dossier) {
+    const err = new Error('Dossier introuvable');
+    err.status = 404;
+    throw err;
+  }
+  const pieces = repository.getSection(dossierId, 'pieces');
+  const piece = pieces && pieces.find((p) => p.id === Number(pieceId));
+  if (!piece) {
+    const err = new Error('Pièce justificative introuvable');
+    err.status = 404;
+    throw err;
+  }
+  return {
+    filename: `piece-${piece.id}.pdf`,
+    buffer: buildPiecePdf({ dossier, piece }),
+  };
+}
+
 function stats({ annee }) {
   const year = annee ? Number(annee) : undefined;
   const raw = repository.statsByYear(year);
@@ -418,4 +440,4 @@ function stats({ annee }) {
   };
 }
 
-module.exports = { list, get, create, patch, remove, restore, purge, saveSection, saveAvis, stats, STATUTS, CONSOLIDATION_AVIS_COLONNES };
+module.exports = { list, get, create, patch, remove, restore, purge, saveSection, saveAvis, stats, getPieceFichier, STATUTS, CONSOLIDATION_AVIS_COLONNES };

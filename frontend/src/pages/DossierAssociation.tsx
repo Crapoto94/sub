@@ -99,7 +99,7 @@ export default function DossierAssociation() {
   return (
     <div className="mx-auto w-full max-w-[1800px] px-4 py-6">
       <DossierTocBar />
-      <DossierHeader dossier={dossier} />
+      <DossierHeader dossier={dossier} association={association} />
 
       <div className="mt-6 flex items-start gap-6">
         <div className="hidden lg:block lg:self-stretch">
@@ -116,7 +116,7 @@ export default function DossierAssociation() {
           <SectionTarifaire tarifs={tarifs} />
           <SectionFinanciere fin={fin} detail={tableauFinancier} associationNom={association?.nomOfficielAssociation} />
           <SectionFinancements financements={financements} />
-          <SectionPieces pieces={pieces} />
+          <SectionPieces pieces={pieces} dossierId={dossier.id} />
           <SectionSynthese synthese={synthese} />
         </main>
       </div>
