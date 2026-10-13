@@ -101,6 +101,7 @@ Format utilisé : **0.MINOR.PATCH** (stade instable, majeure fixée à 0).
 
 ### Historique des versions (analysé depuis les commits `Crapoto94/sub`)
 
+- **0.6.0 – 2026-10-13** — Export PDF d'un dossier complet (liste + page de consultation), à l'identique des rubriques affichées à l'écran ; aperçu PDF imprimable des pièces justificatives.
 - **0.5.4 – 2026-10-04** — Qualité data recentrée sur le financier ; tolérance identité (nom/date/adresse) ; infobulle des écarts.
 - **0.5.3 – 2026-10-04** — Liste des dossiers : colonne « Qualité des données » au regard de l'API Entreprise (score 0-100, niveau, filtre et recalcul).
 - **0.5.2 – 2026-10-04** — Rubrique 9 : analyse API explicite (requête, périmètre, résultat) et constats nuancés.

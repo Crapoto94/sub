@@ -4,9 +4,17 @@ export interface ChangelogEntry {
   features: string[];
 }
 
-export const APP_VERSION = '0.5.4';
+export const APP_VERSION = '0.6.0';
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '0.6.0',
+    date: '2026-10-13',
+    features: [
+      'Dossiers : bouton « Exporter » sur la liste et sur la page d\'un dossier — export PDF du dossier complet sous la même forme que celle affichée à l\'écran (rubriques 1 à 11 : identification, effectifs, bénévolat, niveaux, projets, tarifaire, situation financière, financements, pièces, synthèse), prêt à imprimer ou enregistrer en PDF (A4)',
+      'Pièces justificatives : bouton « Voir » ouvrant un aperçu PDF de chaque pièce (généré à la volée), consultable et imprimable',
+    ],
+  },
   {
     version: '0.5.4',
     date: '2026-10-04',

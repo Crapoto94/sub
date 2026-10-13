@@ -166,11 +166,13 @@ frontend/src/
 
 La version de l'application est affichée **en haut à gauche** (sidebar) avec le bouton **« Quoi de neuf ? »** qui ouvre les notes de version.
 
-- Version courante : **0.5.4** (`frontend/src/lib/appMeta.ts`).
+- Version courante : **0.6.0** (`frontend/src/lib/appMeta.ts`).
 - Convention de versionnage : **0.x.0** pour un nouveau module / grosse fonctionnalité, **0.0.x** pour une version mineure corrective ou légère amélioration — voir `manifest.md`.
 - Chaque évolution majeure doit **incrémenter** `APP_VERSION` et **ajouter une entrée** dans `CHANGELOG` (version, date, liste des nouveautés), tout en mettant à jour ce document.
 
 ### Historique
+
+**0.6.0 — 2026-10-13** : export PDF d'un dossier complet (bouton « Exporter » sur la liste des dossiers et sur la page de consultation), reproduisant à l'identique les rubriques affichées à l'écran (1 à 11), prêt à imprimer / enregistrer en PDF (A4) ; pièces justificatives — bouton « Voir » avec aperçu PDF imprimable de chaque pièce.
 
 **0.5.4 — 2026-10-04** : qualité des données recentrée sur les données financières (rubrique 9 vs DataSubvention) ; comparaison tolérante sur l'identité (nom proche, date ±1 mois, adresses) ; infobulle listant les écarts sur la pastille.
 
